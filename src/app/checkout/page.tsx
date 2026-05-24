@@ -97,7 +97,7 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0;
   }
 
-  function finishOrder() {
+  async function finishOrder() {
     if (itemCount === 0) {
       return;
     }
@@ -106,11 +106,35 @@ export default function CheckoutPage() {
       return;
     }
 
-    const code = `KR-${Date.now().toString().slice(-6)}`;
-    setOrderCode(code);
-    alert(
-      `Pedido ${code} montado. Falta conectar o gateway de pagamento para finalizar cobrança real.`
-    );
+    const orderPayload = {
+      items: cart.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image,
+        quantity: item.quantity,
+      })),
+      customer,
+      shipping: { method: selectedShipping.title, price: shipping },
+      payment: paymentMethod,
+      subtotal,
+      discount: pixDiscount + couponDiscount,
+      total,
+      note: customizationNote,
+    };
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+      const order = await response.json();
+      setOrderCode(order.id);
+    } catch {
+      const code = `KR-${Date.now().toString().slice(-6)}`;
+      setOrderCode(code);
+    }
   }
 
   return (

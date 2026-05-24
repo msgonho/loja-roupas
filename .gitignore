@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# runtime data (admin panel JSON storage)
+/data/
+
 # vercel
 .vercel
 
