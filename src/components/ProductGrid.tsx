@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
-import { currency, products as defaultProducts, type Product } from "@/lib/products";
+import { currency, shopProducts as defaultProducts, type Product } from "@/lib/products";
 
 type ProductGridProps = {
   products?: Product[];
@@ -63,51 +63,51 @@ export default function ProductGrid({
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         {products.map((product, index) => {
           const shouldFeature = isEditorial && index === 0;
-          const quoteHref =
-            product.badge === "Atacado"
-              ? "/atacado#orcamento-atacado"
-              : "/personalize#briefing-personalizacao";
-
           return (
             <article
               key={product.id}
-              className={`group overflow-hidden rounded-md border border-neutral-200 bg-white transition-colors hover:border-neutral-400 ${
+              className={`group flex flex-col overflow-hidden rounded-md border border-neutral-200 bg-white transition-colors hover:border-neutral-400 ${
                 shouldFeature ? "sm:col-span-2 lg:col-span-2" : ""
               }`}
             >
-              <div
-                className={`relative overflow-hidden bg-neutral-100 ${
-                  shouldFeature ? "aspect-[16/11]" : "aspect-[4/5]"
-                }`}
-              >
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  sizes={
-                    shouldFeature
-                      ? "(min-width: 1024px) 50vw, 100vw"
-                      : "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                  }
-                  className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                />
-                <div className="absolute left-3 top-3 rounded-md bg-white/92 px-3 py-2 text-xs font-black uppercase text-black">
-                  {product.badge}
+              <Link href={`/produto/${product.slug}`} className="block">
+                <div
+                  className={`relative overflow-hidden bg-neutral-100 ${
+                    shouldFeature ? "aspect-[16/11]" : "aspect-[4/5]"
+                  }`}
+                >
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    unoptimized={product.image.startsWith("data:")}
+                    sizes={
+                      shouldFeature
+                        ? "(min-width: 1024px) 50vw, 100vw"
+                        : "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                    }
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                  <div className="absolute left-3 top-3 rounded-md bg-white/92 px-3 py-2 text-xs font-black uppercase text-black">
+                    {product.badge}
+                  </div>
                 </div>
-              </div>
+              </Link>
 
-              <div className="flex min-h-64 flex-col p-4">
+              <div className="flex flex-1 flex-col p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-base font-black uppercase leading-snug">
-                      {product.name}
-                    </h3>
+                    <Link href={`/produto/${product.slug}`}>
+                      <h3 className="text-base font-black uppercase leading-snug transition-colors hover:text-[var(--accent)]">
+                        {product.name}
+                      </h3>
+                    </Link>
                     <p className="mt-1 text-sm font-bold text-neutral-500">{product.fit}</p>
                   </div>
                   <p className="shrink-0 text-base font-black">{currency.format(product.price)}</p>
                 </div>
 
-                <p className="mt-4 min-h-16 text-sm font-medium leading-6 text-neutral-600">
+                <p className="mt-4 text-sm font-medium leading-6 text-neutral-600">
                   {product.description}
                 </p>
 
@@ -127,31 +127,20 @@ export default function ProductGrid({
                 </div>
 
                 <div className="mt-auto grid gap-2 pt-5">
-                  {product.category === "custom" ? (
-                    <Link
-                      href={quoteHref}
-                      className="focus-ring rounded-md bg-black px-4 py-3 text-center text-sm font-black uppercase text-white transition-colors hover:bg-neutral-800"
-                    >
-                      {product.badge === "Atacado" ? "Orçar atacado" : "Orçar personalizado"}
-                    </Link>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => buyNow(product)}
-                        className="focus-ring rounded-md bg-black px-4 py-3 text-sm font-black uppercase text-white transition-colors hover:bg-neutral-800"
-                      >
-                        Comprar agora
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => addProduct(product)}
-                        className="focus-ring rounded-md border border-neutral-300 px-4 py-3 text-sm font-black uppercase text-neutral-900 transition-colors hover:border-black hover:bg-neutral-100"
-                      >
-                        Adicionar à sacola
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => buyNow(product)}
+                    className="focus-ring rounded-md bg-black px-4 py-3 text-sm font-black uppercase text-white transition-colors hover:bg-neutral-800"
+                  >
+                    Comprar agora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addProduct(product)}
+                    className="focus-ring rounded-md border border-neutral-300 px-4 py-3 text-sm font-black uppercase text-neutral-900 transition-colors hover:border-black hover:bg-neutral-100"
+                  >
+                    Adicionar à sacola
+                  </button>
                 </div>
               </div>
             </article>

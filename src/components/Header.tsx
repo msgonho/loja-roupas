@@ -84,8 +84,8 @@ export default function Header() {
                 alt="KromaLab"
                 width={236}
                 height={60}
-                sizes="(min-width: 640px) 180px, 142px"
-                className="h-8 w-auto sm:h-9"
+                sizes="(min-width: 640px) 220px, 170px"
+                className="h-10 w-auto sm:h-12"
                 preload
               />
             </Link>
@@ -101,10 +101,10 @@ export default function Header() {
 
           <div className="flex shrink-0 items-center gap-2">
             <Link
-              href={quoteHref}
-              className="focus-ring hidden rounded-md border border-neutral-300 px-4 py-2.5 text-sm font-bold text-neutral-900 transition-colors hover:border-black hover:bg-neutral-100 md:inline-flex"
+              href="/personalize#briefing-personalizacao"
+              className="focus-ring hidden rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--accent)]/90 md:inline-flex"
             >
-              Orçamento
+              Personalizar
             </Link>
             <Link
               href="/checkout"

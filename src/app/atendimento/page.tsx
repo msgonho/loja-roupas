@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Footer from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "Atendimento — KromaLab",
+  description:
+    "Canais de atendimento KromaLab: WhatsApp, e-mail e pós-venda para compras, pedidos e produção.",
+};
 
 const channels = [
   ["WhatsApp", "Pedidos, prazos, medidas, arte e orçamento assistido."],

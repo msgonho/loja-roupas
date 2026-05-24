@@ -3,9 +3,12 @@ export type Product = {
   slug: string;
   name: string;
   price: number;
+  costPrice?: number;
   image: string;
+  images?: string[];
   badge: string;
-  category: "ready" | "drop" | "custom";
+  pixDiscount?: number;
+  category: "ready" | "custom";
   fit: string;
   material: string;
   color: string;
@@ -44,8 +47,8 @@ export const products: Product[] = [
     name: "Moletom Heavy Kroma",
     price: 249.9,
     image: "/moletom.png",
-    badge: "Novo drop",
-    category: "drop",
+    badge: "Novo",
+    category: "ready",
     fit: "Relaxado",
     material: "Moletom 3 cabos",
     color: "Preto",
@@ -126,6 +129,13 @@ export const products: Product[] = [
   },
 ];
 
-export const launchProducts = products.filter((product) => product.launch);
-export const readyProducts = products.filter((product) => product.category !== "custom");
+export const shopProducts = products.filter((product) => product.category !== "custom");
+export const launchProducts = shopProducts.filter((product) => product.launch);
+export const readyProducts = products.filter((product) => product.category === "ready");
 export const customProducts = products.filter((product) => product.category === "custom");
+
+export function getProductBySlug(slug: string): Product | undefined {
+  return products.find((product) => product.slug === slug);
+}
+
+export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "5511999999999";

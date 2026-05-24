@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Footer from "@/components/Footer";
 import { useCart } from "@/components/CartContext";
-import { currency } from "@/lib/products";
+import { currency, products } from "@/lib/products";
 
 const shippingOptions = [
   {
@@ -29,7 +29,7 @@ const shippingOptions = [
 ];
 
 const paymentMethods = [
-  { id: "pix", title: "Pix", subtitle: "5% de desconto no pedido" },
+  { id: "pix", title: "Pix", subtitle: "Desconto Pix por produto" },
   { id: "card", title: "Cartão", subtitle: "Gateway pendente de integração" },
   { id: "quote", title: "Pedido assistido", subtitle: "Enviar resumo para atendimento" },
 ];
@@ -49,6 +49,43 @@ export default function CheckoutPage() {
   const [coupon, setCoupon] = useState("");
   const [customizationNote, setCustomizationNote] = useState("");
   const [orderCode, setOrderCode] = useState("");
+  const [customer, setCustomer] = useState({
+    name: "",
+    whatsapp: "",
+    email: "",
+    cep: "",
+    city: "",
+    address: "",
+    bairro: "",
+    complement: "",
+    number: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const lookupCep = useCallback(async (cep: string) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setErrors((prev) => ({ ...prev, cep: "CEP não encontrado" }));
+      } else {
+        setCustomer((prev) => ({
+          ...prev,
+          address: data.logradouro || "",
+          bairro: data.bairro || "",
+          city: data.localidade ? `${data.localidade} / ${data.uf}` : prev.city,
+        }));
+        setErrors((prev) => ({ ...prev, cep: "" }));
+      }
+    } catch {
+      setErrors((prev) => ({ ...prev, cep: "Erro ao buscar CEP" }));
+    }
+    setCepLoading(false);
+  }, []);
 
   const selectedShipping = useMemo(
     () =>
@@ -61,20 +98,78 @@ export default function CheckoutPage() {
     itemCount === 0 || selectedShipping.id === "pickup" || subtotal >= 299
       ? 0
       : selectedShipping.price;
-  const pixDiscount = paymentMethod === "pix" ? subtotal * 0.05 : 0;
+  const pixDiscount = useMemo(() => {
+    if (paymentMethod !== "pix") return 0;
+    return cart.reduce((acc, item) => {
+      const product = products.find((p) => p.id === item.id);
+      const rate = product?.pixDiscount ?? 0.05;
+      return acc + item.price * item.quantity * rate;
+    }, 0);
+  }, [paymentMethod, cart]);
   const couponDiscount = coupon.trim().toUpperCase() === "KROMA10" ? subtotal * 0.1 : 0;
   const total = Math.max(subtotal + shipping - pixDiscount - couponDiscount, 0);
 
-  function finishOrder() {
+  function validateCustomer() {
+    const newErrors: Record<string, string> = {};
+
+    if (!customer.name.trim()) {
+      newErrors.name = "Preencha seu nome";
+    }
+    if (!customer.whatsapp.trim()) {
+      newErrors.whatsapp = "Preencha o WhatsApp";
+    }
+    if (!customer.email.trim() || !customer.email.includes("@")) {
+      newErrors.email = "Preencha um e-mail válido";
+    }
+    if (!customer.cep.trim()) {
+      newErrors.cep = "Preencha o CEP";
+    }
+    if (!customer.address.trim()) {
+      newErrors.address = "Preencha o endereço";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function finishOrder() {
     if (itemCount === 0) {
       return;
     }
 
-    const code = `KR-${Date.now().toString().slice(-6)}`;
-    setOrderCode(code);
-    alert(
-      `Pedido ${code} montado. Falta conectar o gateway de pagamento para finalizar cobrança real.`
-    );
+    if (!validateCustomer()) {
+      return;
+    }
+
+    const orderPayload = {
+      items: cart.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image,
+        quantity: item.quantity,
+      })),
+      customer,
+      shipping: { method: selectedShipping.title, price: shipping },
+      payment: paymentMethod,
+      subtotal,
+      discount: pixDiscount + couponDiscount,
+      total,
+      note: customizationNote,
+    };
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+      const order = await response.json();
+      setOrderCode(order.id);
+    } catch {
+      const code = `KR-${Date.now().toString().slice(-6)}`;
+      setOrderCode(code);
+    }
   }
 
   return (
@@ -174,12 +269,15 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="mt-5 grid gap-5">
-                  {cart.map((item) => (
+                  {cart.map((item) => {
+                    const prod = products.find((p) => p.id === item.id);
+                    const slug = prod?.slug;
+                    return (
                     <article
                       key={item.id}
                       className="grid gap-4 rounded-lg border border-neutral-200 p-4 sm:grid-cols-[104px_1fr_auto]"
                     >
-                      <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-neutral-100">
+                      <Link href={slug ? `/produto/${slug}` : "#"} className="relative aspect-[4/5] overflow-hidden rounded-lg bg-neutral-100 block">
                         <Image
                           src={item.image}
                           alt={item.name}
@@ -187,10 +285,10 @@ export default function CheckoutPage() {
                           sizes="104px"
                           className="object-cover"
                         />
-                      </div>
+                      </Link>
 
                       <div>
-                        <h3 className="text-base font-black uppercase">{item.name}</h3>
+                        <Link href={slug ? `/produto/${slug}` : "#"} className="text-base font-black uppercase hover:underline">{item.name}</Link>
                         <p className="mt-1 text-sm font-bold text-neutral-600">
                           {currency.format(item.price)} un.
                         </p>
@@ -224,75 +322,142 @@ export default function CheckoutPage() {
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.id)}
-                          className="focus-ring rounded-lg px-3 py-2 text-xs font-black uppercase text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black"
+                          className="focus-ring inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black uppercase text-red-500 transition-colors hover:bg-red-50"
                         >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                           Remover
                         </button>
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 
               <section className="rounded-lg bg-white p-5 shadow-sm md:p-6">
                 <p className="text-xs font-black uppercase text-neutral-500">Etapa 2</p>
                 <h2 className="mt-1 text-2xl font-black uppercase">Dados do cliente</h2>
-                <form className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     Nome completo
                     <input
                       type="text"
+                      required
                       autoComplete="name"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.name}
+                      onChange={(event) => setCustomer({ ...customer, name: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.name ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="Seu nome"
                     />
+                    {errors.name ? <span className="text-xs font-bold normal-case text-red-500">{errors.name}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     WhatsApp
                     <input
                       type="tel"
+                      required
                       autoComplete="tel"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.whatsapp}
+                      onChange={(event) => setCustomer({ ...customer, whatsapp: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.whatsapp ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="(00) 00000-0000"
                     />
+                    {errors.whatsapp ? <span className="text-xs font-bold normal-case text-red-500">{errors.whatsapp}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700 md:col-span-2">
                     E-mail
                     <input
                       type="email"
+                      required
                       autoComplete="email"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.email}
+                      onChange={(event) => setCustomer({ ...customer, email: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.email ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="voce@email.com"
                     />
+                    {errors.email ? <span className="text-xs font-bold normal-case text-red-500">{errors.email}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     CEP
-                    <input
-                      type="text"
-                      autoComplete="postal-code"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
-                      placeholder="00000-000"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        autoComplete="postal-code"
+                        value={customer.cep}
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          setCustomer({ ...customer, cep: val });
+                          setErrors((prev) => ({ ...prev, cep: "" }));
+                          if (val.replace(/\D/g, "").length === 8) lookupCep(val);
+                        }}
+                        onBlur={() => lookupCep(customer.cep)}
+                        className={`focus-ring w-full rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.cep ? "border-red-400" : "border-neutral-300"}`}
+                        placeholder="00000-000"
+                      />
+                      {cepLoading ? <span className="absolute right-3 top-3 h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-black" /> : null}
+                    </div>
+                    {errors.cep ? <span className="text-xs font-bold normal-case text-red-500">{errors.cep}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     Cidade e estado
                     <input
                       type="text"
                       autoComplete="address-level2"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
-                      placeholder="Cidade / UF"
+                      value={customer.city}
+                      onChange={(event) => setCustomer({ ...customer, city: event.target.value })}
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black bg-neutral-50"
+                      placeholder="Preenchido pelo CEP"
+                      readOnly
                     />
                   </label>
-                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700 md:col-span-2">
-                    Endereço completo
+                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
+                    Rua / Logradouro
                     <input
                       type="text"
+                      required
                       autoComplete="street-address"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
-                      placeholder="Rua, número, complemento e bairro"
+                      value={customer.address}
+                      onChange={(event) => setCustomer({ ...customer, address: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black bg-neutral-50 ${errors.address ? "border-red-400" : "border-neutral-300"}`}
+                      placeholder="Preenchido pelo CEP"
+                      readOnly
+                    />
+                    {errors.address ? <span className="text-xs font-bold normal-case text-red-500">{errors.address}</span> : null}
+                  </label>
+                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
+                    Bairro
+                    <input
+                      type="text"
+                      value={customer.bairro}
+                      onChange={(event) => setCustomer({ ...customer, bairro: event.target.value })}
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black bg-neutral-50"
+                      placeholder="Preenchido pelo CEP"
+                      readOnly
                     />
                   </label>
-                </form>
+                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
+                    Número
+                    <input
+                      type="text"
+                      required
+                      value={customer.number}
+                      onChange={(event) => setCustomer({ ...customer, number: event.target.value })}
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      placeholder="123"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
+                    Complemento
+                    <input
+                      type="text"
+                      value={customer.complement}
+                      onChange={(event) => setCustomer({ ...customer, complement: event.target.value })}
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      placeholder="Apto, bloco..."
+                    />
+                  </label>
+                </div>
               </section>
 
               <section className="rounded-lg bg-white p-5 shadow-sm md:p-6">

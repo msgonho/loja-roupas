@@ -56,20 +56,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
   }, [cart]);
 
+  const [dismissAt, setDismissAt] = useState<number | null>(null);
+  const [fading, setFading] = useState(false);
+
+  function scheduleAutoDismiss() {
+    setDismissAt(Date.now() + 2500);
+    setFading(false);
+  }
+
   useEffect(() => {
-    if (!lastAddedItem) {
-      return;
-    }
+    if (dismissAt === null) return;
 
-    const timer = window.setTimeout(() => {
+    const fadeTimer = window.setTimeout(() => setFading(true), 2000);
+    const removeTimer = window.setTimeout(() => {
       setLastAddedItem(null);
-    }, 3600);
+      setDismissAt(null);
+    }, 2500);
 
-    return () => window.clearTimeout(timer);
-  }, [lastAddedItem]);
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(removeTimer);
+    };
+  }, [dismissAt]);
 
   function addToCart(item: Omit<CartItem, "quantity">) {
     setLastAddedItem(item);
+    scheduleAutoDismiss();
 
     setCart((previousCart) => {
       const existingItem = previousCart.find((product) => product.id === item.id);
@@ -131,7 +143,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     >
       {children}
       {lastAddedItem ? (
-        <div className="fixed bottom-4 left-4 right-4 z-[90] mx-auto max-w-md overflow-hidden rounded-lg border border-black/15 bg-white shadow-2xl sm:left-auto sm:right-5 sm:top-24 sm:bottom-auto">
+        <div className={`fixed bottom-4 left-4 right-4 z-[90] mx-auto max-w-md overflow-hidden rounded-lg border border-black/15 bg-white shadow-2xl transition-opacity duration-500 sm:left-auto sm:right-5 sm:top-24 sm:bottom-auto ${fading ? "opacity-0" : "opacity-100"}`}>
           <div className="flex items-start gap-4 p-4">
             <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
               <Image

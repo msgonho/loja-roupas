@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Footer from "@/components/Footer";
+import { WHATSAPP_NUMBER } from "@/lib/products";
 
 type QuoteItem = {
   id: number;
@@ -28,7 +29,7 @@ const productsByCategory: Record<string, string[]> = {
 const colors = ["Preto", "Branco", "Grafite", "Cru", "Colorido", "A definir"];
 const sizes = ["PP", "P", "M", "G", "GG", "XG", "Grade variada"];
 const positions = ["Peito", "Frente central", "Costas", "Manga", "Frente e costas", "A definir"];
-const techniques = ["Silk", "DTF", "Bordado", "Laser", "Sublimação", "A definir"];
+const techniques = ["Silk", "DTF", "Sublimação", "A definir"];
 
 function createItem(id = 1): QuoteItem {
   return {
@@ -127,9 +128,8 @@ export default function PersonalizePage() {
       ]),
     ].join("\n");
 
-    const whatsappNumber = "5511999999999";
     window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
       "_blank"
     );
   }
@@ -250,7 +250,7 @@ export default function PersonalizePage() {
                             Math.max(Number(event.target.value) || 1, 1)
                           )
                         }
-                        className="focus-ring rounded-md border border-neutral-300 px-4 py-3 text-sm font-bold text-black"
+                        className="focus-ring w-full min-w-0 rounded-md border border-neutral-300 px-4 py-3 text-sm font-bold text-black"
                       />
                     </label>
 
