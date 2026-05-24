@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminShell from "@/components/AdminShell";
 import type { AdminUser, Material } from "@/lib/data";
+import type { Product } from "@/lib/products";
 
 type FormItem = { name: string; price: string; costPrice: string; quantity: string };
 type MaterialUsage = { materialId: string; quantity: string };
@@ -12,9 +13,11 @@ export default function NewOrderPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [materialUsages, setMaterialUsages] = useState<MaterialUsage[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
 
   const [customer, setCustomer] = useState({
     name: "", whatsapp: "", email: "", cep: "", city: "", address: "", bairro: "", number: "", complement: "",
@@ -64,7 +67,27 @@ export default function NewOrderPage() {
       .then((r) => r.json())
       .then((data) => setMaterials(Array.isArray(data) ? data : []))
       .catch(() => {});
+    fetch("/api/products", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
+
+  function selectProduct(index: number, productName: string) {
+    const product = products.find((p) => p.name === productName);
+    if (product) {
+      const updated = [...items];
+      updated[index] = {
+        ...updated[index],
+        name: product.name,
+        price: product.price.toString(),
+        costPrice: (product.costPrice || 0).toString(),
+      };
+      setItems(updated);
+    } else {
+      updateItem(index, "name", productName);
+    }
+  }
 
   function addMaterialUsage() {
     setMaterialUsages((prev) => [...prev, { materialId: "", quantity: "1" }]);
@@ -171,7 +194,11 @@ export default function NewOrderPage() {
       });
 
       if (res.ok) {
-        router.push("/admin/pedidos");
+        setSuccess("Pedido criado com sucesso!");
+        setTimeout(() => {
+          router.push("/admin/pedidos");
+          router.refresh();
+        }, 1500);
       } else {
         let msg = "Erro ao criar pedido";
         try { const data = await res.json(); msg = data.error || msg; } catch { /* ignore */ }
@@ -269,13 +296,25 @@ export default function NewOrderPage() {
               <div key={index} className="grid grid-cols-[1fr_100px_100px_80px_auto] items-end gap-2">
                 <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
                   Produto
-                  <input
-                    type="text"
-                    value={item.name}
-                    onChange={(e) => updateItem(index, "name", e.target.value)}
-                    className="admin-input text-sm"
-                    placeholder="Nome do produto"
-                  />
+                  <div className="flex gap-1">
+                    <select
+                      value={products.find((p) => p.name === item.name) ? item.name : ""}
+                      onChange={(e) => selectProduct(index, e.target.value)}
+                      className="admin-input flex-1 text-sm"
+                    >
+                      <option value="">Selecionar produto...</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.name}>{p.name} — {`R$ ${p.price.toFixed(2)}`}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={item.name}
+                      onChange={(e) => updateItem(index, "name", e.target.value)}
+                      className="admin-input flex-1 text-sm"
+                      placeholder="ou digite manualmente"
+                    />
+                  </div>
                 </label>
                 <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
                   Venda (R$)
@@ -512,6 +551,11 @@ export default function NewOrderPage() {
           ) : null}
         </div>
 
+        {success ? (
+          <div className="rounded-md bg-green-500/20 border border-green-500/30 px-4 py-3 text-sm font-bold text-green-400">
+            {success}
+          </div>
+        ) : null}
         {error ? <p className="text-sm font-bold text-red-400">{error}</p> : null}
 
         <div className="flex gap-3">

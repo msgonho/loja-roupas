@@ -57,6 +57,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   function generateSlug(name: string) {
     return name
@@ -187,8 +188,11 @@ export default function ProductForm({ product }: ProductFormProps) {
         return;
       }
 
-      router.push("/admin/produtos");
-      router.refresh();
+      setSuccess(isEditing ? "Produto salvo com sucesso!" : "Produto criado com sucesso!");
+      setTimeout(() => {
+        router.push("/admin/produtos");
+        router.refresh();
+      }, 1500);
     } catch {
       setError("Erro de conexão ao salvar o produto");
     } finally {
@@ -472,6 +476,12 @@ export default function ProductForm({ product }: ProductFormProps) {
           onChange={(e) => handleImageUpload(e.target.files)}
         />
       </div>
+
+      {success ? (
+        <div className="rounded-md bg-green-500/20 border border-green-500/30 px-4 py-3 text-sm font-bold text-green-400">
+          {success}
+        </div>
+      ) : null}
 
       {error ? (
         <p className="text-sm font-bold text-red-400">{error}</p>

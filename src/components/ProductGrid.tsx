@@ -80,6 +80,7 @@ export default function ProductGrid({
                     src={product.image}
                     alt={product.name}
                     fill
+                    unoptimized={product.image.startsWith("data:")}
                     sizes={
                       shouldFeature
                         ? "(min-width: 1024px) 50vw, 100vw"

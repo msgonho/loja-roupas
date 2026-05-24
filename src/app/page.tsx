@@ -3,7 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
-import { launchProducts } from "@/lib/products";
+import { getProducts } from "@/lib/data";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "KromaLab Personalizados — Streetwear, Brindes e Uniformes",
@@ -32,7 +34,10 @@ const quickLinks = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const allProducts = await getProducts();
+  const shopItems = allProducts.filter((p) => p.category !== "custom");
+  const launchItems = shopItems.filter((p) => p.launch);
   return (
     <main className="min-h-screen bg-[var(--background)] text-black">
       <section className="relative min-h-[calc(78svh-68px)] overflow-hidden bg-black text-white">
@@ -94,7 +99,7 @@ export default function Home() {
       </section>
 
       <ProductGrid
-        products={launchProducts.slice(0, 4)}
+        products={launchItems.length > 0 ? launchItems.slice(0, 4) : shopItems.slice(0, 4)}
         eyebrow="Destaques"
         title="Peças para começar."
         description="Uma seleção curta da coleção para escolher rápido e seguir para a sacola ou briefing."

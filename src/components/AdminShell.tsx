@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/pedidos", label: "Pedidos", icon: "◈" },
   { href: "/admin/estoque", label: "Estoque", icon: "▤" },
   { href: "/admin/usuarios", label: "Usuários", icon: "◎" },
+  { href: "/admin/integracoes", label: "Integrações", icon: "⚡" },
   { href: "/admin/configuracoes", label: "Configurações", icon: "⚙" },
 ];
 

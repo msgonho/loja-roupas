@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import AdminShell from "@/components/AdminShell";
-import type { Order } from "@/lib/data";
+import type { Order, AdminUser } from "@/lib/data";
 import { currency } from "@/lib/products";
+
+const allPaymentStatuses = ["pendente", "pago", "orcamento", "desistencia", "reembolsado"] as const;
+const paymentStatusLabels: Record<string, string> = {
+  pendente: "Pendente",
+  pago: "Pago",
+  orcamento: "Orçamento",
+  desistencia: "Desistência",
+  reembolsado: "Reembolsado",
+};
+const paymentStatusColors: Record<string, string> = {
+  pendente: "bg-yellow-500/20 text-yellow-400",
+  pago: "bg-green-500/20 text-green-400",
+  orcamento: "bg-blue-500/20 text-blue-400",
+  desistencia: "bg-red-500/20 text-red-400",
+  reembolsado: "bg-orange-500/20 text-orange-400",
+};
 
 const PAGE_SIZE = 15;
 
@@ -42,6 +59,47 @@ export default function AdminOrdersPage() {
   const [sortBy, setSortBy] = useState<"date" | "total" | "priority">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [modalUpdating, setModalUpdating] = useState(false);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [trackingCode, setTrackingCode] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
+
+  useEffect(() => {
+    fetch("/api/users", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  const openModal = useCallback((order: Order) => {
+    setSelectedOrder(order);
+    setTrackingCode(order.trackingCode || "");
+    setInternalNotes(order.internalNotes || "");
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setSelectedOrder(null);
+  }, []);
+
+  async function patchOrderModal(updates: Record<string, unknown>) {
+    if (!selectedOrder) return;
+    setModalUpdating(true);
+    try {
+      const res = await fetch(`/api/orders/${selectedOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedOrder(updated);
+        setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      }
+    } catch { /* ignore */ }
+    setModalUpdating(false);
+  }
 
   useEffect(() => {
     fetch("/api/orders", { credentials: "include" })
@@ -363,12 +421,13 @@ export default function AdminOrdersPage() {
                       {new Date(order.createdAt).toLocaleDateString("pt-BR")}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/admin/pedidos/${order.id}`}
+                      <button
+                        type="button"
+                        onClick={() => openModal(order)}
                         className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-bold text-neutral-300 transition-colors hover:bg-white/10"
                       >
                         Detalhes
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -403,6 +462,178 @@ export default function AdminOrdersPage() {
           ) : null}
         </>
       )}
+      {/* Order Detail Modal */}
+      {selectedOrder ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
+          <div className="relative my-8 w-full max-w-3xl rounded-lg border border-white/10 bg-[#111] p-6 shadow-2xl">
+            <button type="button" onClick={closeModal} className="absolute right-4 top-4 rounded-md p-1 text-neutral-400 hover:text-white">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-black uppercase text-white">{selectedOrder.id}</h2>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-black capitalize ${statusColors[selectedOrder.status] || "bg-white/10 text-neutral-400"}`}>
+                {selectedOrder.status}
+              </span>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-black ${paymentStatusColors[selectedOrder.paymentStatus || "pendente"] || ""}`}>
+                {paymentStatusLabels[selectedOrder.paymentStatus || "pendente"] || "Pendente"}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-neutral-500">
+              {new Date(selectedOrder.createdAt).toLocaleDateString("pt-BR")} às {new Date(selectedOrder.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              {selectedOrder.priority ? ` · ${priorityLabels[selectedOrder.priority]}` : ""}
+              {selectedOrder.assignee ? ` · ${selectedOrder.assignee}` : ""}
+            </p>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {/* Customer */}
+              <div className="rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Cliente</h3>
+                <div className="mt-2 grid gap-1 text-sm text-neutral-300">
+                  <p className="font-bold text-white">{selectedOrder.customer.name}</p>
+                  {selectedOrder.customer.whatsapp ? <p>WhatsApp: {selectedOrder.customer.whatsapp}</p> : null}
+                  {selectedOrder.customer.email ? <p>E-mail: {selectedOrder.customer.email}</p> : null}
+                  {selectedOrder.customer.cep ? <p>CEP: {selectedOrder.customer.cep}</p> : null}
+                  {selectedOrder.customer.address ? <p>{selectedOrder.customer.address}{selectedOrder.customer.bairro ? `, ${selectedOrder.customer.bairro}` : ""}</p> : null}
+                  {selectedOrder.customer.number ? <p>Nº {selectedOrder.customer.number}{selectedOrder.customer.complement ? ` — ${selectedOrder.customer.complement}` : ""}</p> : null}
+                  {selectedOrder.customer.city ? <p>{selectedOrder.customer.city}</p> : null}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Resumo</h3>
+                <div className="mt-2 grid gap-1 text-sm text-neutral-300">
+                  <p><span className="font-bold text-white">Pagamento:</span> {selectedOrder.payment}</p>
+                  <p><span className="font-bold text-white">Frete:</span> {selectedOrder.shipping.method} — {selectedOrder.shipping.price === 0 ? "Grátis" : currency.format(selectedOrder.shipping.price)}</p>
+                  <p><span className="font-bold text-white">Subtotal:</span> {currency.format(selectedOrder.subtotal)}</p>
+                  {selectedOrder.costTotal ? <p><span className="font-bold text-white">Custo:</span> {currency.format(selectedOrder.costTotal)}</p> : null}
+                  <p><span className="font-bold text-white">Desconto:</span> {currency.format(selectedOrder.discount)}</p>
+                  <p className="text-base"><span className="font-bold text-white">Total:</span> <span className="font-black text-white">{currency.format(selectedOrder.total)}</span></p>
+                  {selectedOrder.costTotal ? (
+                    <p className="text-base">
+                      <span className="font-bold text-white">Lucro:</span>{" "}
+                      <span className={`font-black ${selectedOrder.total - selectedOrder.costTotal > 0 ? "text-green-400" : "text-red-400"}`}>
+                        {currency.format(selectedOrder.total - selectedOrder.costTotal)}
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {/* Items */}
+            <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-4">
+              <h3 className="text-xs font-black uppercase text-neutral-400">Itens</h3>
+              <div className="mt-2 grid gap-2">
+                {selectedOrder.items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm">
+                    {item.image ? (
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-neutral-800">
+                        <Image src={item.image} alt={item.name} fill sizes="40px" className="object-cover" />
+                      </div>
+                    ) : null}
+                    <div className="flex-1">
+                      <p className="font-bold text-white">{item.name}</p>
+                      <p className="text-xs text-neutral-500">Qtd: {item.quantity} × {currency.format(item.price)}{item.costPrice ? ` · Custo: ${currency.format(item.costPrice)}` : ""}</p>
+                    </div>
+                    <p className="font-bold text-white">{currency.format(item.price * item.quantity)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Status do Pedido */}
+            <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-4">
+              <h3 className="text-xs font-black uppercase text-neutral-400">Status do pedido</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {allStatuses.map((s) => (
+                  <button key={s} type="button" disabled={modalUpdating || selectedOrder.status === s} onClick={() => patchOrderModal({ status: s })}
+                    className={`rounded-md px-3 py-1.5 text-xs font-black capitalize transition-colors disabled:opacity-30 ${selectedOrder.status === s ? "bg-white text-black" : "border border-white/10 text-neutral-300 hover:bg-white/10"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Status do Pagamento */}
+            <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-4">
+              <h3 className="text-xs font-black uppercase text-neutral-400">Status do pagamento</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {allPaymentStatuses.map((ps) => (
+                  <button key={ps} type="button" disabled={modalUpdating || selectedOrder.paymentStatus === ps} onClick={() => patchOrderModal({ paymentStatus: ps })}
+                    className={`rounded-md px-3 py-1.5 text-xs font-black transition-colors disabled:opacity-30 ${selectedOrder.paymentStatus === ps ? paymentStatusColors[ps] || "bg-white text-black" : "border border-white/10 text-neutral-300 hover:bg-white/10"}`}>
+                    {paymentStatusLabels[ps] || ps}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Priority & Assignee */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Prioridade</h3>
+                <select value={selectedOrder.priority || "normal"} onChange={(e) => patchOrderModal({ priority: e.target.value })} className="admin-input mt-2 w-full text-sm" disabled={modalUpdating}>
+                  <option value="baixa">Baixa</option>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </div>
+              <div className="rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Responsável</h3>
+                <select value={selectedOrder.assignee || ""} onChange={(e) => patchOrderModal({ assignee: e.target.value || undefined })} className="admin-input mt-2 w-full text-sm" disabled={modalUpdating}>
+                  <option value="">Sem responsável</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.name}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tracking & Notes */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Rastreio</h3>
+                <div className="mt-2 flex gap-2">
+                  <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Código de rastreio..." className="admin-input flex-1" />
+                  <button type="button" disabled={modalUpdating || trackingCode === (selectedOrder.trackingCode || "")} onClick={() => patchOrderModal({ trackingCode })}
+                    className="rounded-md bg-white px-3 py-1.5 text-xs font-black uppercase text-black hover:bg-neutral-200 disabled:opacity-30">Salvar</button>
+                </div>
+              </div>
+              <div className="rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Notas internas</h3>
+                <div className="mt-2 flex gap-2">
+                  <textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} placeholder="Notas internas..." className="admin-input flex-1 resize-none" />
+                  <button type="button" disabled={modalUpdating || internalNotes === (selectedOrder.internalNotes || "")} onClick={() => patchOrderModal({ internalNotes })}
+                    className="self-end rounded-md bg-white px-3 py-1.5 text-xs font-black uppercase text-black hover:bg-neutral-200 disabled:opacity-30">Salvar</button>
+                </div>
+              </div>
+            </div>
+
+            {selectedOrder.note ? (
+              <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Observação do cliente</h3>
+                <p className="mt-1 text-sm text-neutral-300">{selectedOrder.note}</p>
+              </div>
+            ) : null}
+
+            {/* Timeline */}
+            {selectedOrder.timeline && selectedOrder.timeline.length > 0 ? (
+              <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-4">
+                <h3 className="text-xs font-black uppercase text-neutral-400">Timeline</h3>
+                <div className="mt-2 grid gap-1">
+                  {selectedOrder.timeline.map((ev, i) => (
+                    <p key={i} className="text-xs text-neutral-400">
+                      <span className="font-bold text-neutral-300">{new Date(ev.date).toLocaleString("pt-BR")}</span> — {ev.action}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }

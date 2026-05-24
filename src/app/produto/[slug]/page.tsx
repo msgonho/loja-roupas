@@ -4,19 +4,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
 import AddToCartButton from "./AddToCartButton";
-import { currency, products, getProductBySlug } from "@/lib/products";
+import { currency } from "@/lib/products";
+import { getProducts, getProductBySlug as getProductBySlugDynamic } from "@/lib/data";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const products = await getProducts();
   return products.map((product) => ({ slug: product.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlugDynamic(slug);
 
   if (!product) {
     return { title: "Produto não encontrado — KromaLab" };
@@ -30,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlugDynamic(slug);
 
   if (!product) {
     notFound();
@@ -51,6 +55,7 @@ export default async function ProductPage({ params }: Props) {
               alt={product.name}
               fill
               preload
+              unoptimized={product.image.startsWith("data:")}
               sizes="(min-width: 1024px) 50vw, 100vw"
               className="object-cover"
             />

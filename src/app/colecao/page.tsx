@@ -3,7 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
-import { shopProducts, readyProducts, customProducts } from "@/lib/products";
+import { getProducts } from "@/lib/data";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Coleção — KromaLab",
@@ -11,14 +13,19 @@ export const metadata: Metadata = {
     "Catálogo completo de camisetas streetwear, moletons, personalizados e kits. Compre peças prontas ou solicite orçamento.",
 };
 
-const categories = [
-  ["Todos", `${shopProducts.length} modelos`],
-  ["Pronta entrega", `${readyProducts.length} peças`],
-  ["Personalizáveis", `${customProducts.length} opções`],
-  ["Atacado", "kits sob consulta"],
-];
+export default async function ColecaoPage() {
+  const allProducts = await getProducts();
+  const shopItems = allProducts.filter((p) => p.category !== "custom");
+  const readyItems = allProducts.filter((p) => p.category === "ready");
+  const customItems = allProducts.filter((p) => p.category === "custom");
 
-export default function ColecaoPage() {
+  const categories = [
+    ["Todos", `${shopItems.length} modelos`],
+    ["Pronta entrega", `${readyItems.length} peças`],
+    ["Personalizáveis", `${customItems.length} opções`],
+    ["Atacado", "kits sob consulta"],
+  ];
+
   return (
     <main className="min-h-screen bg-[var(--background)] text-black">
       <section className="bg-white">
@@ -74,7 +81,7 @@ export default function ColecaoPage() {
       </section>
 
       <ProductGrid
-        products={shopProducts}
+        products={shopItems}
         eyebrow="Produtos"
         title="Catálogo KromaLab"
         description="Peças prontas para compra direta. Para personalização, use o botão acima."

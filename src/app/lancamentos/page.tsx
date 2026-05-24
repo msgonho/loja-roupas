@@ -3,7 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
-import { launchProducts } from "@/lib/products";
+import { getProducts } from "@/lib/data";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Lançamentos — KromaLab",
@@ -17,7 +19,11 @@ const highlights = [
   "Primeiros lotes com reposição conforme demanda.",
 ];
 
-export default function LancamentosPage() {
+export default async function LancamentosPage() {
+  const allProducts = await getProducts();
+  const shopItems = allProducts.filter((p) => p.category !== "custom");
+  const launchItems = shopItems.filter((p) => p.launch);
+
   return (
     <main className="min-h-screen bg-[#111] text-white">
       <section className="relative overflow-hidden">
@@ -80,7 +86,7 @@ export default function LancamentosPage() {
 
       <div id="lancamentos" className="bg-[var(--background)] text-black">
         <ProductGrid
-          products={launchProducts}
+          products={launchItems}
           eyebrow="Entradas recentes"
           title="Peças novas para comprar ou personalizar."
           description="Menos catálogo, mais lançamento: uma seleção enxuta para destacar novidade."
