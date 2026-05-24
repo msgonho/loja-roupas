@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import AdminShell from "@/components/AdminShell";
 import type { AdminUser, Material } from "@/lib/data";
 
-type FormItem = { name: string; price: string; quantity: string };
+type FormItem = { name: string; price: string; costPrice: string; quantity: string };
 type MaterialUsage = { materialId: string; quantity: string };
 
 export default function NewOrderPage() {
@@ -17,29 +17,37 @@ export default function NewOrderPage() {
   const [materialUsages, setMaterialUsages] = useState<MaterialUsage[]>([]);
 
   const [customer, setCustomer] = useState({
-    name: "", whatsapp: "", email: "", cep: "", city: "", address: "", number: "", complement: "",
+    name: "", whatsapp: "", email: "", cep: "", city: "", address: "", bairro: "", number: "", complement: "",
   });
   const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
 
   const lookupCep = useCallback(async (cep: string) => {
     const clean = cep.replace(/\D/g, "");
     if (clean.length !== 8) return;
     setCepLoading(true);
+    setCepError("");
     try {
       const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
       const data = await res.json();
-      if (!data.erro) {
+      if (data.erro) {
+        setCepError("CEP não encontrado");
+      } else {
         setCustomer((prev) => ({
           ...prev,
-          address: [data.logradouro, data.bairro].filter(Boolean).join(", "),
+          address: data.logradouro || "",
+          bairro: data.bairro || "",
           city: data.localidade ? `${data.localidade} / ${data.uf}` : prev.city,
         }));
       }
-    } catch { /* ignore */ }
+    } catch {
+      setCepError("Erro ao buscar CEP");
+    }
     setCepLoading(false);
   }, []);
-  const [items, setItems] = useState<FormItem[]>([{ name: "", price: "", quantity: "1" }]);
+  const [items, setItems] = useState<FormItem[]>([{ name: "", price: "", costPrice: "", quantity: "1" }]);
   const [payment, setPayment] = useState("pix");
+  const [paymentStatus, setPaymentStatus] = useState<string>("pendente");
   const [shippingMethod, setShippingMethod] = useState("Retirada");
   const [shippingPrice, setShippingPrice] = useState("0");
   const [discount, setDiscount] = useState("0");
@@ -71,7 +79,7 @@ export default function NewOrderPage() {
   }
 
   function addItem() {
-    setItems((prev) => [...prev, { name: "", price: "", quantity: "1" }]);
+    setItems((prev) => [...prev, { name: "", price: "", costPrice: "", quantity: "1" }]);
   }
 
   function removeItem(index: number) {
@@ -100,11 +108,16 @@ export default function NewOrderPage() {
 
     setSaving(true);
     try {
+      const costTotal = items.reduce((sum, item) => {
+        return sum + (parseFloat(item.costPrice) || 0) * (parseInt(item.quantity) || 1);
+      }, 0);
+
       const payload = {
         items: items.map((item, i) => ({
           id: Date.now() + i,
           name: item.name.trim(),
           price: parseFloat(item.price) || 0,
+          costPrice: parseFloat(item.costPrice) || 0,
           image: "/produto-placeholder.png",
           quantity: parseInt(item.quantity) || 1,
         })),
@@ -115,10 +128,14 @@ export default function NewOrderPage() {
           cep: customer.cep.trim(),
           city: customer.city.trim(),
           address: customer.address.trim(),
+          number: customer.number.trim(),
+          complement: customer.complement.trim(),
         },
         shipping: { method: shippingMethod, price: parseFloat(shippingPrice) || 0 },
         payment,
+        paymentStatus,
         subtotal,
+        costTotal,
         discount: parseFloat(discount) || 0,
         total,
         note: note.trim(),
@@ -205,22 +222,28 @@ export default function NewOrderPage() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setCustomer({ ...customer, cep: val });
+                    setCepError("");
                     if (val.replace(/\D/g, "").length === 8) lookupCep(val);
                   }}
                   onBlur={() => lookupCep(customer.cep)}
-                  className="admin-input w-full"
+                  className={`admin-input w-full ${cepError ? "border-red-500" : ""}`}
                   placeholder="00000-000"
                 />
                 {cepLoading ? <span className="absolute right-3 top-3 h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" /> : null}
               </div>
+              {cepError ? <span className="text-[10px] font-bold text-red-400">{cepError}</span> : null}
             </label>
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
               Cidade
               <input type="text" value={customer.city} readOnly className="admin-input opacity-60" placeholder="Preenchido pelo CEP" />
             </label>
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
-              Endereço (rua, bairro)
+              Rua / Logradouro
               <input type="text" value={customer.address} readOnly className="admin-input opacity-60" placeholder="Preenchido pelo CEP" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Bairro
+              <input type="text" value={customer.bairro} readOnly className="admin-input opacity-60" placeholder="Preenchido pelo CEP" />
             </label>
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
               Número
@@ -243,7 +266,7 @@ export default function NewOrderPage() {
           </div>
           <div className="mt-4 grid gap-3">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-[1fr_100px_80px_auto] items-end gap-2">
+              <div key={index} className="grid grid-cols-[1fr_100px_100px_80px_auto] items-end gap-2">
                 <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
                   Produto
                   <input
@@ -255,13 +278,25 @@ export default function NewOrderPage() {
                   />
                 </label>
                 <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
-                  Preço
+                  Venda (R$)
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={item.price}
                     onChange={(e) => updateItem(index, "price", e.target.value)}
+                    className="admin-input text-sm"
+                    placeholder="0.00"
+                  />
+                </label>
+                <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
+                  Custo (R$)
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={item.costPrice}
+                    onChange={(e) => updateItem(index, "costPrice", e.target.value)}
                     className="admin-input text-sm"
                     placeholder="0.00"
                   />
@@ -352,15 +387,25 @@ export default function NewOrderPage() {
         {/* Payment & Shipping */}
         <section className="rounded-md border border-white/10 bg-white/5 p-5">
           <h2 className="text-sm font-black uppercase text-neutral-400">Pagamento e frete</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
-              Pagamento
+              Forma de pagamento
               <select value={payment} onChange={(e) => setPayment(e.target.value)} className="admin-input">
                 <option value="pix">Pix</option>
                 <option value="cartão">Cartão</option>
                 <option value="boleto">Boleto</option>
                 <option value="dinheiro">Dinheiro</option>
                 <option value="transferência">Transferência</option>
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Status pagamento
+              <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="admin-input">
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+                <option value="orcamento">Orçamento</option>
+                <option value="desistencia">Desistência</option>
+                <option value="reembolsado">Reembolsado</option>
               </select>
             </label>
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
@@ -436,9 +481,15 @@ export default function NewOrderPage() {
         {/* Summary */}
         <div className="rounded-md border border-white/10 bg-white/5 p-5">
           <div className="flex items-center justify-between text-sm text-neutral-300">
-            <span>Subtotal</span>
+            <span>Subtotal (venda)</span>
             <span className="font-bold text-white">R$ {subtotal.toFixed(2)}</span>
           </div>
+          {items.some((i) => parseFloat(i.costPrice) > 0) ? (
+            <div className="mt-1 flex items-center justify-between text-sm text-neutral-300">
+              <span>Custo total</span>
+              <span className="text-neutral-400">R$ {items.reduce((s, i) => s + (parseFloat(i.costPrice) || 0) * (parseInt(i.quantity) || 1), 0).toFixed(2)}</span>
+            </div>
+          ) : null}
           <div className="mt-1 flex items-center justify-between text-sm text-neutral-300">
             <span>Frete</span>
             <span>R$ {(parseFloat(shippingPrice) || 0).toFixed(2)}</span>
@@ -451,6 +502,14 @@ export default function NewOrderPage() {
             <span className="font-black text-white">Total</span>
             <span className="font-black text-white">R$ {total.toFixed(2)}</span>
           </div>
+          {items.some((i) => parseFloat(i.costPrice) > 0) ? (
+            <div className="mt-1 flex items-center justify-between text-sm">
+              <span className="text-neutral-400">Lucro estimado</span>
+              <span className={`font-bold ${total - items.reduce((s, i) => s + (parseFloat(i.costPrice) || 0) * (parseInt(i.quantity) || 1), 0) > 0 ? "text-green-400" : "text-red-400"}`}>
+                R$ {(total - items.reduce((s, i) => s + (parseFloat(i.costPrice) || 0) * (parseInt(i.quantity) || 1), 0)).toFixed(2)}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {error ? <p className="text-sm font-bold text-red-400">{error}</p> : null}

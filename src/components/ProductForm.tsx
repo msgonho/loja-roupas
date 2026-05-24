@@ -31,6 +31,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     slug: product?.slug || "",
     description: product?.description || "",
     price: product?.price?.toString() || "",
+    costPrice: product?.costPrice?.toString() || "",
     image: product?.image || "/produto-placeholder.png",
     images: product?.images && product.images.length > 0
       ? product.images
@@ -47,6 +48,11 @@ export default function ProductForm({ product }: ProductFormProps) {
     stock: product?.stock || "Em estoque",
     launch: product?.launch ?? false,
   });
+
+  const salePrice = parseFloat(form.price) || 0;
+  const costPriceVal = parseFloat(form.costPrice) || 0;
+  const profitMargin = salePrice > 0 && costPriceVal > 0 ? ((salePrice - costPriceVal) / salePrice) * 100 : 0;
+  const profitPerUnit = salePrice - costPriceVal;
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -138,6 +144,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         slug: form.slug.trim(),
         description: form.description.trim(),
         price: parseFloat(form.price),
+        costPrice: parseFloat(form.costPrice) || 0,
         image: form.images.length > 0 ? form.images[0] : form.image.trim(),
         images: form.images,
         category: form.category,
@@ -225,7 +232,7 @@ export default function ProductForm({ product }: ProductFormProps) {
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Preço (R$)">
+        <Field label="Preço de venda (R$)">
           <input
             type="number"
             required
@@ -237,6 +244,37 @@ export default function ProductForm({ product }: ProductFormProps) {
             placeholder="129.90"
           />
         </Field>
+        <Field label="Custo de produção (R$)">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={form.costPrice}
+            onChange={(e) => updateField("costPrice", e.target.value)}
+            className="admin-input"
+            placeholder="45.00"
+          />
+        </Field>
+        <div className="grid gap-2">
+          <span className="text-xs font-black uppercase text-neutral-400">Lucro estimado</span>
+          <div className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-2.5">
+            {costPriceVal > 0 ? (
+              <>
+                <span className={`text-sm font-black ${profitPerUnit > 0 ? "text-green-400" : "text-red-400"}`}>
+                  R$ {profitPerUnit.toFixed(2)}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${profitMargin > 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                  {profitMargin.toFixed(1)}%
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-neutral-500">Preencha o custo</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Categoria">
           <select
             value={form.category}
@@ -261,6 +299,16 @@ export default function ProductForm({ product }: ProductFormProps) {
                 {b}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="Exibir em">
+          <select
+            value={form.launch ? "lancamentos" : "colecao"}
+            onChange={(e) => updateField("launch", e.target.value === "lancamentos")}
+            className="admin-input"
+          >
+            <option value="colecao">Coleção</option>
+            <option value="lancamentos">Lançamentos</option>
           </select>
         </Field>
       </div>
@@ -352,7 +400,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Estoque">
           <input
             type="text"
@@ -373,16 +421,6 @@ export default function ProductForm({ product }: ProductFormProps) {
             className="admin-input"
             placeholder="5"
           />
-        </Field>
-        <Field label="Exibir em">
-          <select
-            value={form.launch ? "lancamentos" : "colecao"}
-            onChange={(e) => updateField("launch", e.target.value === "lancamentos")}
-            className="admin-input"
-          >
-            <option value="colecao">Coleção</option>
-            <option value="lancamentos">Lançamentos</option>
-          </select>
         </Field>
       </div>
 

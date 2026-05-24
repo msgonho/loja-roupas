@@ -9,45 +9,46 @@ function dataPath(file: string) {
   return path.join(DATA_DIR, file);
 }
 
+// In-memory cache used as fallback on read-only filesystems (Vercel)
+const memoryStore = new Map<string, string>();
+
 async function ensureDir() {
   try {
     if (!existsSync(DATA_DIR)) {
       await mkdir(DATA_DIR, { recursive: true });
     }
   } catch {
-    /* read-only filesystem (e.g. Vercel) */
+    /* read-only filesystem */
   }
 }
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
+  // Check in-memory first
+  const cached = memoryStore.get(file);
+  if (cached) {
+    try { return JSON.parse(cached) as T; } catch { /* ignore */ }
+  }
+
   await ensureDir();
   const filePath = dataPath(file);
-  if (!existsSync(filePath)) {
+  if (existsSync(filePath)) {
     try {
-      await writeFile(filePath, JSON.stringify(fallback, null, 2), "utf-8");
-    } catch {
-      /* read-only filesystem — return in-memory fallback */
-    }
-    return fallback;
+      const raw = await readFile(filePath, "utf-8");
+      return JSON.parse(raw) as T;
+    } catch { /* fall through */ }
   }
-  try {
-    const raw = await readFile(filePath, "utf-8");
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+  return fallback;
 }
 
 async function writeJson<T>(file: string, data: T): Promise<void> {
+  const json = JSON.stringify(data, null, 2);
+  // Always store in memory so reads within the same process work
+  memoryStore.set(file, json);
   try {
     await ensureDir();
-    await writeFile(dataPath(file), JSON.stringify(data, null, 2), "utf-8");
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT" || code === "EROFS" || code === "EACCES") {
-      throw new Error("Operação de escrita não disponível neste ambiente. Use um ambiente local para salvar dados.");
-    }
-    throw err;
+    await writeFile(dataPath(file), json, "utf-8");
+  } catch {
+    // Filesystem unavailable (Vercel) — data persisted in memory only
   }
 }
 
@@ -103,7 +104,7 @@ export type OrderEvent = {
 
 export type Order = {
   id: string;
-  items: { id: number; name: string; price: number; image: string; quantity: number }[];
+  items: { id: number; name: string; price: number; costPrice?: number; image: string; quantity: number }[];
   customer: {
     name: string;
     whatsapp: string;
@@ -111,10 +112,15 @@ export type Order = {
     cep: string;
     city: string;
     address: string;
+    bairro?: string;
+    number?: string;
+    complement?: string;
   };
   shipping: { method: string; price: number };
   payment: string;
+  paymentStatus?: "pendente" | "pago" | "desistencia" | "orcamento" | "reembolsado";
   subtotal: number;
+  costTotal?: number;
   discount: number;
   total: number;
   note: string;
@@ -152,7 +158,7 @@ export async function createOrder(order: Omit<Order, "id" | "status" | "createdA
   return newOrder;
 }
 
-export async function updateOrder(id: string, updates: Partial<Pick<Order, "status" | "trackingCode" | "internalNotes" | "customer" | "priority" | "assignee" | "items" | "payment" | "subtotal" | "discount" | "total" | "shipping" | "note">>): Promise<Order | null> {
+export async function updateOrder(id: string, updates: Partial<Pick<Order, "status" | "trackingCode" | "internalNotes" | "customer" | "priority" | "assignee" | "items" | "payment" | "paymentStatus" | "subtotal" | "costTotal" | "discount" | "total" | "shipping" | "note">>): Promise<Order | null> {
   const orders = await getOrders();
   const index = orders.findIndex((o) => o.id === id);
   if (index === -1) return null;

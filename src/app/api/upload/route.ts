@@ -12,15 +12,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
+    let canWriteFs = true;
     try {
       if (!existsSync(UPLOAD_DIR)) {
         await mkdir(UPLOAD_DIR, { recursive: true });
       }
     } catch {
-      return NextResponse.json(
-        { error: "Upload não disponível neste ambiente. Use o ambiente local para fazer upload de imagens." },
-        { status: 503 }
-      );
+      canWriteFs = false;
     }
 
     const formData = await request.formData();
@@ -45,12 +43,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Arquivo "${file.name}" excede 5 MB` }, { status: 400 });
       }
 
-      const ext = file.name.split(".").pop() || "png";
-      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const filePath = path.join(UPLOAD_DIR, safeName);
       const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(filePath, buffer);
-      urls.push(`/uploads/${safeName}`);
+
+      if (canWriteFs) {
+        const ext = file.name.split(".").pop() || "png";
+        const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const filePath = path.join(UPLOAD_DIR, safeName);
+        await writeFile(filePath, buffer);
+        urls.push(`/uploads/${safeName}`);
+      } else {
+        const base64 = buffer.toString("base64");
+        urls.push(`data:${file.type};base64,${base64}`);
+      }
     }
 
     return NextResponse.json({ urls }, { status: 201 });
