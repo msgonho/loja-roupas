@@ -210,7 +210,20 @@ export default function AdminSettingsPage() {
             ) : null}
           </div>
         </form>
-      ) : null}
+      ) : (
+        <div className="mt-8 rounded-md border border-dashed border-white/10 p-8 text-center">
+          <p className="text-sm font-bold text-neutral-500">
+            Não foi possível carregar as configurações.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 text-sm font-bold text-white underline"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
     </AdminShell>
   );
 }

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
-import { currency, products as defaultProducts, type Product } from "@/lib/products";
+import { currency, shopProducts as defaultProducts, type Product } from "@/lib/products";
 
 type ProductGridProps = {
   products?: Product[];
@@ -63,11 +63,6 @@ export default function ProductGrid({
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         {products.map((product, index) => {
           const shouldFeature = isEditorial && index === 0;
-          const quoteHref =
-            product.badge === "Atacado"
-              ? "/atacado#orcamento-atacado"
-              : "/personalize#briefing-personalizacao";
-
           return (
             <article
               key={product.id}
@@ -131,31 +126,20 @@ export default function ProductGrid({
                 </div>
 
                 <div className="mt-auto grid gap-2 pt-5">
-                  {product.category === "custom" ? (
-                    <Link
-                      href={quoteHref}
-                      className="focus-ring rounded-md bg-black px-4 py-3 text-center text-sm font-black uppercase text-white transition-colors hover:bg-neutral-800"
-                    >
-                      {product.badge === "Atacado" ? "Orçar atacado" : "Orçar personalizado"}
-                    </Link>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => buyNow(product)}
-                        className="focus-ring rounded-md bg-black px-4 py-3 text-sm font-black uppercase text-white transition-colors hover:bg-neutral-800"
-                      >
-                        Comprar agora
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => addProduct(product)}
-                        className="focus-ring rounded-md border border-neutral-300 px-4 py-3 text-sm font-black uppercase text-neutral-900 transition-colors hover:border-black hover:bg-neutral-100"
-                      >
-                        Adicionar à sacola
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => buyNow(product)}
+                    className="focus-ring rounded-md bg-black px-4 py-3 text-sm font-black uppercase text-white transition-colors hover:bg-neutral-800"
+                  >
+                    Comprar agora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addProduct(product)}
+                    className="focus-ring rounded-md border border-neutral-300 px-4 py-3 text-sm font-black uppercase text-neutral-900 transition-colors hover:border-black hover:bg-neutral-100"
+                  >
+                    Adicionar à sacola
+                  </button>
                 </div>
               </div>
             </article>

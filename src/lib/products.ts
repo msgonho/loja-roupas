@@ -126,7 +126,8 @@ export const products: Product[] = [
   },
 ];
 
-export const launchProducts = products.filter((product) => product.launch);
+export const shopProducts = products.filter((product) => product.category !== "custom");
+export const launchProducts = shopProducts.filter((product) => product.launch);
 export const readyProducts = products.filter((product) => product.category !== "custom");
 export const customProducts = products.filter((product) => product.category === "custom");
 

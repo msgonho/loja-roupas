@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
-import { products, readyProducts, customProducts } from "@/lib/products";
+import { shopProducts, readyProducts, customProducts } from "@/lib/products";
 
 export const metadata: Metadata = {
   title: "Coleção — KromaLab",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 const categories = [
-  ["Todos", `${products.length} modelos`],
+  ["Todos", `${shopProducts.length} modelos`],
   ["Pronta entrega", `${readyProducts.length} peças`],
   ["Personalizáveis", `${customProducts.length} opções`],
   ["Atacado", "kits sob consulta"],
@@ -74,10 +74,10 @@ export default function ColecaoPage() {
       </section>
 
       <ProductGrid
-        products={products}
+        products={shopProducts}
         eyebrow="Produtos"
         title="Catálogo KromaLab"
-        description="Uma grade completa para decidir entre compra pronta, personalização e atacado."
+        description="Peças prontas para compra direta. Para personalização, use o botão acima."
       />
 
       <Footer />
