@@ -39,8 +39,16 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
 }
 
 async function writeJson<T>(file: string, data: T): Promise<void> {
-  await ensureDir();
-  await writeFile(dataPath(file), JSON.stringify(data, null, 2), "utf-8");
+  try {
+    await ensureDir();
+    await writeFile(dataPath(file), JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "EROFS" || code === "EACCES") {
+      throw new Error("Operação de escrita não disponível neste ambiente. Use um ambiente local para salvar dados.");
+    }
+    throw err;
+  }
 }
 
 // --- Products ---
@@ -272,4 +280,86 @@ export async function deleteUser(id: string): Promise<boolean> {
   if (filtered.length === users.length) return false;
   await writeJson("users.json", filtered);
   return true;
+}
+
+// --- Inventory / Materials ---
+
+export type Material = {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  minStock: number;
+  costPerUnit: number;
+  updatedAt: string;
+  createdAt: string;
+};
+
+const materialCategories = ["Tintas", "Rolos", "Pó DTF", "Filmes", "Tecidos", "Embalagens", "Outros"];
+
+const defaultMaterials: Material[] = [];
+
+export async function getMaterials(): Promise<Material[]> {
+  return readJson<Material[]>("materials.json", defaultMaterials);
+}
+
+export async function getMaterialById(id: string): Promise<Material | undefined> {
+  const materials = await getMaterials();
+  return materials.find((m) => m.id === id);
+}
+
+export async function createMaterial(material: Omit<Material, "id" | "createdAt" | "updatedAt">): Promise<Material> {
+  const materials = await getMaterials();
+  const newMaterial: Material = {
+    ...material,
+    id: `mat-${Date.now().toString(36)}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  materials.push(newMaterial);
+  await writeJson("materials.json", materials);
+  return newMaterial;
+}
+
+export async function updateMaterial(id: string, updates: Partial<Omit<Material, "id" | "createdAt">>): Promise<Material | null> {
+  const materials = await getMaterials();
+  const index = materials.findIndex((m) => m.id === id);
+  if (index === -1) return null;
+  materials[index] = { ...materials[index], ...updates, updatedAt: new Date().toISOString() };
+  await writeJson("materials.json", materials);
+  return materials[index];
+}
+
+export async function deleteMaterial(id: string): Promise<boolean> {
+  const materials = await getMaterials();
+  const filtered = materials.filter((m) => m.id !== id);
+  if (filtered.length === materials.length) return false;
+  await writeJson("materials.json", filtered);
+  return true;
+}
+
+export async function deductMaterials(items: { materialId: string; quantity: number }[]): Promise<{ success: boolean; errors: string[] }> {
+  const materials = await getMaterials();
+  const errors: string[] = [];
+
+  for (const item of items) {
+    const mat = materials.find((m) => m.id === item.materialId);
+    if (!mat) {
+      errors.push(`Material ${item.materialId} não encontrado`);
+      continue;
+    }
+    if (mat.quantity < item.quantity) {
+      errors.push(`${mat.name}: estoque insuficiente (disponível: ${mat.quantity} ${mat.unit}, solicitado: ${item.quantity})`);
+      continue;
+    }
+    mat.quantity -= item.quantity;
+    mat.updatedAt = new Date().toISOString();
+  }
+
+  if (errors.length === 0) {
+    await writeJson("materials.json", materials);
+  }
+
+  return { success: errors.length === 0, errors };
 }

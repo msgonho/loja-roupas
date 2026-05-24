@@ -1,21 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminShell from "@/components/AdminShell";
-import type { AdminUser } from "@/lib/data";
+import type { AdminUser, Material } from "@/lib/data";
 
 type FormItem = { name: string; price: string; quantity: string };
+type MaterialUsage = { materialId: string; quantity: string };
 
 export default function NewOrderPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [materialUsages, setMaterialUsages] = useState<MaterialUsage[]>([]);
 
   const [customer, setCustomer] = useState({
-    name: "", whatsapp: "", email: "", cep: "", city: "", address: "",
+    name: "", whatsapp: "", email: "", cep: "", city: "", address: "", number: "", complement: "",
   });
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const lookupCep = useCallback(async (cep: string) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setCustomer((prev) => ({
+          ...prev,
+          address: [data.logradouro, data.bairro].filter(Boolean).join(", "),
+          city: data.localidade ? `${data.localidade} / ${data.uf}` : prev.city,
+        }));
+      }
+    } catch { /* ignore */ }
+    setCepLoading(false);
+  }, []);
   const [items, setItems] = useState<FormItem[]>([{ name: "", price: "", quantity: "1" }]);
   const [payment, setPayment] = useState("pix");
   const [shippingMethod, setShippingMethod] = useState("Retirada");
@@ -30,7 +52,23 @@ export default function NewOrderPage() {
       .then((r) => r.json())
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => {});
+    fetch("/api/materials", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => setMaterials(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
+
+  function addMaterialUsage() {
+    setMaterialUsages((prev) => [...prev, { materialId: "", quantity: "1" }]);
+  }
+
+  function removeMaterialUsage(index: number) {
+    setMaterialUsages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateMaterialUsage(index: number, field: keyof MaterialUsage, value: string) {
+    setMaterialUsages((prev) => prev.map((u, i) => (i === index ? { ...u, [field]: value } : u)));
+  }
 
   function addItem() {
     setItems((prev) => [...prev, { name: "", price: "", quantity: "1" }]);
@@ -88,6 +126,26 @@ export default function NewOrderPage() {
         assignee: assignee || undefined,
       };
 
+      // Deduct materials from inventory
+      const matItems = materialUsages
+        .filter((u) => u.materialId && parseFloat(u.quantity) > 0)
+        .map((u) => ({ materialId: u.materialId, quantity: parseFloat(u.quantity) }));
+
+      if (matItems.length > 0) {
+        const matRes = await fetch("/api/materials/deduct", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ items: matItems }),
+        });
+        if (!matRes.ok) {
+          const matData = await matRes.json();
+          setError(matData.errors?.join(", ") || matData.error || "Erro ao descontar materiais");
+          setSaving(false);
+          return;
+        }
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,25 +184,52 @@ export default function NewOrderPage() {
         <section className="rounded-md border border-white/10 bg-white/5 p-5">
           <h2 className="text-sm font-black uppercase text-neutral-400">Dados do cliente</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {([
-              ["name", "Nome *", "Nome completo"],
-              ["whatsapp", "WhatsApp", "5511999999999"],
-              ["email", "E-mail", "email@exemplo.com"],
-              ["cep", "CEP", "00000-000"],
-              ["city", "Cidade", "São Paulo"],
-              ["address", "Endereço", "Rua, número, bairro"],
-            ] as const).map(([field, label, placeholder]) => (
-              <label key={field} className="grid gap-2 text-xs font-black uppercase text-neutral-400">
-                {label}
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Nome *
+              <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} className="admin-input" placeholder="Nome completo" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              WhatsApp
+              <input type="text" value={customer.whatsapp} onChange={(e) => setCustomer({ ...customer, whatsapp: e.target.value })} className="admin-input" placeholder="5511999999999" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              E-mail
+              <input type="email" value={customer.email} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} className="admin-input" placeholder="email@exemplo.com" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              CEP
+              <div className="relative">
                 <input
                   type="text"
-                  value={customer[field]}
-                  onChange={(e) => setCustomer({ ...customer, [field]: e.target.value })}
-                  className="admin-input"
-                  placeholder={placeholder}
+                  value={customer.cep}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomer({ ...customer, cep: val });
+                    if (val.replace(/\D/g, "").length === 8) lookupCep(val);
+                  }}
+                  onBlur={() => lookupCep(customer.cep)}
+                  className="admin-input w-full"
+                  placeholder="00000-000"
                 />
-              </label>
-            ))}
+                {cepLoading ? <span className="absolute right-3 top-3 h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" /> : null}
+              </div>
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Cidade
+              <input type="text" value={customer.city} readOnly className="admin-input opacity-60" placeholder="Preenchido pelo CEP" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Endereço (rua, bairro)
+              <input type="text" value={customer.address} readOnly className="admin-input opacity-60" placeholder="Preenchido pelo CEP" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Número
+              <input type="text" value={customer.number} onChange={(e) => setCustomer({ ...customer, number: e.target.value })} className="admin-input" placeholder="123" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              Complemento
+              <input type="text" value={customer.complement} onChange={(e) => setCustomer({ ...customer, complement: e.target.value })} className="admin-input" placeholder="Apto, bloco..." />
+            </label>
           </div>
         </section>
 
@@ -205,6 +290,64 @@ export default function NewOrderPage() {
             ))}
           </div>
         </section>
+
+        {/* Materials */}
+        {materials.length > 0 ? (
+          <section className="rounded-md border border-white/10 bg-white/5 p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black uppercase text-neutral-400">Materiais utilizados</h2>
+              <button type="button" onClick={addMaterialUsage} className="text-xs font-bold text-neutral-400 transition-colors hover:text-white">
+                + Adicionar material
+              </button>
+            </div>
+            {materialUsages.length > 0 ? (
+              <div className="mt-4 grid gap-3">
+                {materialUsages.map((usage, index) => {
+                  const mat = materials.find((m) => m.id === usage.materialId);
+                  return (
+                    <div key={index} className="grid grid-cols-[1fr_120px_auto] items-end gap-2">
+                      <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
+                        Material
+                        <select
+                          value={usage.materialId}
+                          onChange={(e) => updateMaterialUsage(index, "materialId", e.target.value)}
+                          className="admin-input text-sm"
+                        >
+                          <option value="">Selecione...</option>
+                          {materials.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name} ({m.quantity} {m.unit} disponível)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-[10px] font-black uppercase text-neutral-500">
+                        Qtd {mat ? `(${mat.unit})` : ""}
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={usage.quantity}
+                          onChange={(e) => updateMaterialUsage(index, "quantity", e.target.value)}
+                          className="admin-input text-sm"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => removeMaterialUsage(index)}
+                        className="mb-0.5 rounded-md border border-red-500/30 px-2 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-neutral-500">Nenhum material adicionado. Clique em &quot;+ Adicionar material&quot; para descontar do estoque.</p>
+            )}
+          </section>
+        ) : null}
 
         {/* Payment & Shipping */}
         <section className="rounded-md border border-white/10 bg-white/5 p-5">

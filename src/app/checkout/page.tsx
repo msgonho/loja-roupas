@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Footer from "@/components/Footer";
 import { useCart } from "@/components/CartContext";
 import { currency, products } from "@/lib/products";
@@ -56,8 +56,30 @@ export default function CheckoutPage() {
     cep: "",
     city: "",
     address: "",
+    complement: "",
+    number: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const lookupCep = useCallback(async (cep: string) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setCustomer((prev) => ({
+          ...prev,
+          address: [data.logradouro, data.bairro].filter(Boolean).join(", "),
+          city: data.localidade ? `${data.localidade} / ${data.uf}` : prev.city,
+        }));
+        setErrors((prev) => ({ ...prev, cep: "" }));
+      }
+    } catch { /* ignore */ }
+    setCepLoading(false);
+  }, []);
 
   const selectedShipping = useMemo(
     () =>
@@ -346,15 +368,23 @@ export default function CheckoutPage() {
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     CEP
-                    <input
-                      type="text"
-                      required
-                      autoComplete="postal-code"
-                      value={customer.cep}
-                      onChange={(event) => setCustomer({ ...customer, cep: event.target.value })}
-                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.cep ? "border-red-400" : "border-neutral-300"}`}
-                      placeholder="00000-000"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        autoComplete="postal-code"
+                        value={customer.cep}
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          setCustomer({ ...customer, cep: val });
+                          if (val.replace(/\D/g, "").length === 8) lookupCep(val);
+                        }}
+                        onBlur={() => lookupCep(customer.cep)}
+                        className={`focus-ring w-full rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.cep ? "border-red-400" : "border-neutral-300"}`}
+                        placeholder="00000-000"
+                      />
+                      {cepLoading ? <span className="absolute right-3 top-3 h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-black" /> : null}
+                    </div>
                     {errors.cep ? <span className="text-xs font-bold normal-case text-red-500">{errors.cep}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
@@ -364,22 +394,45 @@ export default function CheckoutPage() {
                       autoComplete="address-level2"
                       value={customer.city}
                       onChange={(event) => setCustomer({ ...customer, city: event.target.value })}
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
-                      placeholder="Cidade / UF"
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black bg-neutral-50"
+                      placeholder="Preenchido pelo CEP"
+                      readOnly
                     />
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700 md:col-span-2">
-                    Endereço completo
+                    Endereço (rua, bairro)
                     <input
                       type="text"
                       required
                       autoComplete="street-address"
                       value={customer.address}
                       onChange={(event) => setCustomer({ ...customer, address: event.target.value })}
-                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.address ? "border-red-400" : "border-neutral-300"}`}
-                      placeholder="Rua, número, complemento e bairro"
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black bg-neutral-50 ${errors.address ? "border-red-400" : "border-neutral-300"}`}
+                      placeholder="Preenchido pelo CEP"
+                      readOnly
                     />
                     {errors.address ? <span className="text-xs font-bold normal-case text-red-500">{errors.address}</span> : null}
+                  </label>
+                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
+                    Número
+                    <input
+                      type="text"
+                      required
+                      value={customer.number}
+                      onChange={(event) => setCustomer({ ...customer, number: event.target.value })}
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      placeholder="123"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
+                    Complemento
+                    <input
+                      type="text"
+                      value={customer.complement}
+                      onChange={(event) => setCustomer({ ...customer, complement: event.target.value })}
+                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      placeholder="Apto, bloco..."
+                    />
                   </label>
                 </div>
               </section>

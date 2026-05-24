@@ -93,6 +93,7 @@ img {
   text-transform: none;
   outline: none;
   transition: border-color 0.15s;
+  color-scheme: dark;
 }
 
 .admin-input::placeholder {

@@ -12,8 +12,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
+    try {
+      if (!existsSync(UPLOAD_DIR)) {
+        await mkdir(UPLOAD_DIR, { recursive: true });
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Upload não disponível neste ambiente. Use o ambiente local para fazer upload de imagens." },
+        { status: 503 }
+      );
     }
 
     const formData = await request.formData();
