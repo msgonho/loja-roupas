@@ -16,12 +16,18 @@ const roleColors: Record<string, string> = {
   viewer: "bg-neutral-500/20 text-neutral-400",
 };
 
+const roleDescriptions: Record<string, string> = {
+  admin: "Acesso total: pode criar/editar/excluir produtos, pedidos, usuários e configurações.",
+  manager: "Pode gerenciar produtos e pedidos. Não pode alterar configurações ou excluir usuários.",
+  viewer: "Apenas visualização: pode ver dados do painel mas não pode editar nada.",
+};
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", role: "viewer" as AdminUser["role"] });
+  const [form, setForm] = useState({ name: "", email: "", role: "viewer" as AdminUser["role"], password: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,14 +40,14 @@ export default function AdminUsersPage() {
   }, []);
 
   function resetForm() {
-    setForm({ name: "", email: "", role: "viewer" });
+    setForm({ name: "", email: "", role: "viewer", password: "" });
     setShowForm(false);
     setEditingId(null);
     setError("");
   }
 
   function startEdit(user: AdminUser) {
-    setForm({ name: user.name, email: user.email, role: user.role });
+    setForm({ name: user.name, email: user.email, role: user.role, password: "" });
     setEditingId(user.id);
     setShowForm(true);
     setError("");
@@ -50,6 +56,10 @@ export default function AdminUsersPage() {
   async function handleSave() {
     if (!form.name.trim() || !form.email.trim()) {
       setError("Preencha nome e e-mail");
+      return;
+    }
+    if (!editingId && !form.password.trim()) {
+      setError("Defina uma senha para o novo usuário");
       return;
     }
     setSaving(true);
@@ -128,13 +138,35 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
+      {/* Role descriptions */}
+      <div className="mt-5 rounded-md border border-white/10 bg-white/5 p-5">
+        <h2 className="text-sm font-black uppercase text-neutral-400">Funções e permissões</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {(["admin", "manager", "viewer"] as const).map((role) => (
+            <div key={role} className="rounded-md border border-white/10 p-3">
+              <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-black ${roleColors[role]}`}>
+                {roleLabels[role]}
+              </span>
+              <p className="mt-2 text-xs leading-5 text-neutral-400">{roleDescriptions[role]}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-md border border-yellow-500/20 bg-yellow-500/5 p-3">
+          <p className="text-xs font-bold text-yellow-400">Como funciona a senha?</p>
+          <p className="mt-1 text-xs leading-5 text-neutral-400">
+            Ao criar um novo usuário, defina uma senha de acesso. O usuário usará este e-mail e senha para fazer login no painel administrativo.
+            Para alterar a senha, edite o usuário e preencha o campo &quot;Nova senha&quot;. Se deixar em branco ao editar, a senha atual será mantida.
+          </p>
+        </div>
+      </div>
+
       {/* Form */}
       {showForm ? (
         <div className="mt-5 rounded-md border border-white/10 bg-white/5 p-5">
           <h2 className="text-sm font-black uppercase text-neutral-400">
             {editingId ? "Editar usuário" : "Novo usuário"}
           </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
               Nome
               <input
@@ -153,6 +185,17 @@ export default function AdminUsersPage() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="admin-input"
                 placeholder="email@exemplo.com"
+              />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+              {editingId ? "Nova senha (deixe em branco para manter)" : "Senha de acesso"}
+              <input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="admin-input"
+                placeholder={editingId ? "••••••••" : "Defina uma senha"}
+                required={!editingId}
               />
             </label>
             <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">

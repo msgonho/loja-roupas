@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import Footer from "@/components/Footer";
 import { useCart } from "@/components/CartContext";
-import { currency } from "@/lib/products";
+import { currency, products } from "@/lib/products";
 
 const shippingOptions = [
   {
@@ -29,7 +29,7 @@ const shippingOptions = [
 ];
 
 const paymentMethods = [
-  { id: "pix", title: "Pix", subtitle: "5% de desconto no pedido" },
+  { id: "pix", title: "Pix", subtitle: "Desconto Pix por produto" },
   { id: "card", title: "Cartão", subtitle: "Gateway pendente de integração" },
   { id: "quote", title: "Pedido assistido", subtitle: "Enviar resumo para atendimento" },
 ];
@@ -70,7 +70,14 @@ export default function CheckoutPage() {
     itemCount === 0 || selectedShipping.id === "pickup" || subtotal >= 299
       ? 0
       : selectedShipping.price;
-  const pixDiscount = paymentMethod === "pix" ? subtotal * 0.05 : 0;
+  const pixDiscount = useMemo(() => {
+    if (paymentMethod !== "pix") return 0;
+    return cart.reduce((acc, item) => {
+      const product = products.find((p) => p.id === item.id);
+      const rate = product?.pixDiscount ?? 0.05;
+      return acc + item.price * item.quantity * rate;
+    }, 0);
+  }, [paymentMethod, cart]);
   const couponDiscount = coupon.trim().toUpperCase() === "KROMA10" ? subtotal * 0.1 : 0;
   const total = Math.max(subtotal + shipping - pixDiscount - couponDiscount, 0);
 

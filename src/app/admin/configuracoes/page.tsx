@@ -143,18 +143,12 @@ export default function AdminSettingsPage() {
                   className="admin-input"
                 />
               </label>
-              <label className="grid gap-2 text-xs font-black uppercase text-neutral-400">
-                Desconto Pix (%)
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={Math.round(settings.pixDiscount * 100)}
-                  onChange={(e) => updateField("pixDiscount", Number(e.target.value) / 100)}
-                  className="admin-input"
-                />
-              </label>
+              <div className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+                Desconto Pix
+                <p className="rounded-md border border-white/10 bg-white/5 p-3 text-xs font-medium normal-case text-neutral-400">
+                  O desconto Pix agora é configurado individualmente em cada produto. Acesse a edição do produto para definir o percentual.
+                </p>
+              </div>
             </div>
           </section>
 

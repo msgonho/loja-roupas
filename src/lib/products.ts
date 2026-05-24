@@ -6,7 +6,8 @@ export type Product = {
   image: string;
   images?: string[];
   badge: string;
-  category: "ready" | "drop" | "custom";
+  pixDiscount?: number;
+  category: "ready" | "custom";
   fit: string;
   material: string;
   color: string;
@@ -45,8 +46,8 @@ export const products: Product[] = [
     name: "Moletom Heavy Kroma",
     price: 249.9,
     image: "/moletom.png",
-    badge: "Novo drop",
-    category: "drop",
+    badge: "Novo",
+    category: "ready",
     fit: "Relaxado",
     material: "Moletom 3 cabos",
     color: "Preto",
@@ -129,7 +130,7 @@ export const products: Product[] = [
 
 export const shopProducts = products.filter((product) => product.category !== "custom");
 export const launchProducts = shopProducts.filter((product) => product.launch);
-export const readyProducts = products.filter((product) => product.category !== "custom");
+export const readyProducts = products.filter((product) => product.category === "ready");
 export const customProducts = products.filter((product) => product.category === "custom");
 
 export function getProductBySlug(slug: string): Product | undefined {

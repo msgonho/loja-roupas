@@ -11,11 +11,13 @@ type ProductFormProps = {
 
 const categories = [
   { value: "ready", label: "Pronta entrega" },
-  { value: "drop", label: "Drop" },
   { value: "custom", label: "Sob demanda" },
 ];
 
-const badges = ["Pronta entrega", "Sob demanda", "Atacado", "Novo", "Edição limitada", "Best seller", "Novo drop", "Profissões", "Utilitário"];
+const badges = ["Pronta entrega", "Sob demanda", "Atacado", "Novo", "Edição limitada", "Best seller", "Profissões", "Utilitário"];
+
+const availableSizes = ["PP", "P", "M", "G", "GG", "XGG", "36", "38", "40", "42", "44", "46", "10+", "30+", "50+"];
+const availableColors = ["Preto", "Branco", "Cinza", "Grafite", "Marinho", "Verde", "Vermelho", "Rosé", "Bege", "Cáqui", "Personalizável"];
 
 const fitOptions = ["Oversized", "Regular", "Slim", "Oversized premium", "Relaxado", "Reto", "A escolher", "Kit"];
 
@@ -30,13 +32,18 @@ export default function ProductForm({ product }: ProductFormProps) {
     description: product?.description || "",
     price: product?.price?.toString() || "",
     image: product?.image || "/produto-placeholder.png",
-    images: product?.images || ([] as string[]),
+    images: product?.images && product.images.length > 0
+      ? product.images
+      : product?.image && product.image !== "/produto-placeholder.png"
+        ? [product.image]
+        : ([] as string[]),
     category: product?.category || "ready",
     badge: product?.badge || "Pronta entrega",
     fit: product?.fit || "Oversized",
     material: product?.material || "",
-    color: product?.color || "Preto",
-    sizes: product?.sizes?.join(", ") || "P, M, G, GG",
+    color: product?.color ? product.color.split(/[,;]+/).map((c) => c.trim()).filter(Boolean) : ["Preto"],
+    sizes: product?.sizes || ["P", "M", "G", "GG"],
+    pixDiscount: product?.pixDiscount?.toString() || "0",
     stock: product?.stock || "Em estoque",
     launch: product?.launch ?? false,
   });
@@ -137,8 +144,9 @@ export default function ProductForm({ product }: ProductFormProps) {
         badge: form.badge,
         fit: form.fit,
         material: form.material.trim(),
-        color: form.color.trim(),
-        sizes: form.sizes.split(",").map((s) => s.trim()).filter(Boolean),
+        color: form.color.join(", "),
+        sizes: form.sizes,
+        pixDiscount: parseFloat(form.pixDiscount) || 0,
         stock: form.stock.trim(),
         launch: form.launch,
       };
@@ -257,7 +265,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Caimento">
           <select
             value={form.fit}
@@ -280,27 +288,71 @@ export default function ProductForm({ product }: ProductFormProps) {
             placeholder="Algodão 30.1 penteado"
           />
         </Field>
-        <Field label="Cor">
-          <input
-            type="text"
-            value={form.color}
-            onChange={(e) => updateField("color", e.target.value)}
-            className="admin-input"
-            placeholder="Preto"
-          />
-        </Field>
+      </div>
+
+      {/* Sizes as tags */}
+      <div>
+        <p className="text-xs font-black uppercase text-neutral-400">Tamanhos disponíveis</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {availableSizes.map((size) => {
+            const selected = form.sizes.includes(size);
+            return (
+              <button
+                key={size}
+                type="button"
+                onClick={() => {
+                  setForm((prev) => ({
+                    ...prev,
+                    sizes: selected
+                      ? prev.sizes.filter((s) => s !== size)
+                      : [...prev.sizes, size],
+                  }));
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
+                  selected
+                    ? "bg-white text-black"
+                    : "border border-white/10 text-neutral-400 hover:bg-white/10"
+                }`}
+              >
+                {size}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Colors as tags */}
+      <div>
+        <p className="text-xs font-black uppercase text-neutral-400">Cores disponíveis</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {availableColors.map((color) => {
+            const selected = form.color.includes(color);
+            return (
+              <button
+                key={color}
+                type="button"
+                onClick={() => {
+                  setForm((prev) => ({
+                    ...prev,
+                    color: selected
+                      ? prev.color.filter((c) => c !== color)
+                      : [...prev.color, color],
+                  }));
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
+                  selected
+                    ? "bg-white text-black"
+                    : "border border-white/10 text-neutral-400 hover:bg-white/10"
+                }`}
+              >
+                {color}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Tamanhos (vírgula)">
-          <input
-            type="text"
-            value={form.sizes}
-            onChange={(e) => updateField("sizes", e.target.value)}
-            className="admin-input"
-            placeholder="P, M, G, GG"
-          />
-        </Field>
         <Field label="Estoque">
           <input
             type="text"
@@ -308,6 +360,18 @@ export default function ProductForm({ product }: ProductFormProps) {
             onChange={(e) => updateField("stock", e.target.value)}
             className="admin-input"
             placeholder="Em estoque"
+          />
+        </Field>
+        <Field label="Desconto Pix (%)">
+          <input
+            type="number"
+            step="1"
+            min="0"
+            max="100"
+            value={form.pixDiscount}
+            onChange={(e) => updateField("pixDiscount", e.target.value)}
+            className="admin-input"
+            placeholder="5"
           />
         </Field>
         <Field label="Exibir em">

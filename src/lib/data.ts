@@ -219,6 +219,7 @@ export type AdminUser = {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: "admin" | "manager" | "viewer";
   createdAt: string;
 };
@@ -228,6 +229,7 @@ const defaultUsers: AdminUser[] = [
     id: "user-1",
     name: "Administrador",
     email: "admin@kromalab.com.br",
+    password: "kromalab2026",
     role: "admin",
     createdAt: new Date().toISOString(),
   },
@@ -254,7 +256,7 @@ export async function createUser(user: Omit<AdminUser, "id" | "createdAt">): Pro
   return newUser;
 }
 
-export async function updateUser(id: string, updates: Partial<Pick<AdminUser, "name" | "email" | "role">>): Promise<AdminUser | null> {
+export async function updateUser(id: string, updates: Partial<Pick<AdminUser, "name" | "email" | "role" | "password">>): Promise<AdminUser | null> {
   const users = await getUsers();
   const index = users.findIndex((u) => u.id === id);
   if (index === -1) return null;

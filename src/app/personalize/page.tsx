@@ -29,7 +29,7 @@ const productsByCategory: Record<string, string[]> = {
 const colors = ["Preto", "Branco", "Grafite", "Cru", "Colorido", "A definir"];
 const sizes = ["PP", "P", "M", "G", "GG", "XG", "Grade variada"];
 const positions = ["Peito", "Frente central", "Costas", "Manga", "Frente e costas", "A definir"];
-const techniques = ["Silk", "DTF", "Bordado", "Laser", "Sublimação", "A definir"];
+const techniques = ["Silk", "DTF", "Sublimação", "A definir"];
 
 function createItem(id = 1): QuoteItem {
   return {
