@@ -84,8 +84,8 @@ export default function Header() {
                 alt="KromaLab"
                 width={236}
                 height={60}
-                sizes="(min-width: 640px) 180px, 142px"
-                className="h-8 w-auto sm:h-9"
+                sizes="(min-width: 640px) 220px, 170px"
+                className="h-10 w-auto sm:h-12"
                 preload
               />
             </Link>

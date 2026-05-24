@@ -71,32 +71,34 @@ export default function ProductGrid({
           return (
             <article
               key={product.id}
-              className={`group overflow-hidden rounded-md border border-neutral-200 bg-white transition-colors hover:border-neutral-400 ${
+              className={`group flex flex-col overflow-hidden rounded-md border border-neutral-200 bg-white transition-colors hover:border-neutral-400 ${
                 shouldFeature ? "sm:col-span-2 lg:col-span-2" : ""
               }`}
             >
-              <div
-                className={`relative overflow-hidden bg-neutral-100 ${
-                  shouldFeature ? "aspect-[16/11]" : "aspect-[4/5]"
-                }`}
-              >
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  sizes={
-                    shouldFeature
-                      ? "(min-width: 1024px) 50vw, 100vw"
-                      : "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                  }
-                  className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                />
-                <div className="absolute left-3 top-3 rounded-md bg-white/92 px-3 py-2 text-xs font-black uppercase text-black">
-                  {product.badge}
+              <Link href={`/produto/${product.slug}`} className="block">
+                <div
+                  className={`relative overflow-hidden bg-neutral-100 ${
+                    shouldFeature ? "aspect-[16/11]" : "aspect-[4/5]"
+                  }`}
+                >
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    sizes={
+                      shouldFeature
+                        ? "(min-width: 1024px) 50vw, 100vw"
+                        : "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                    }
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                  <div className="absolute left-3 top-3 rounded-md bg-white/92 px-3 py-2 text-xs font-black uppercase text-black">
+                    {product.badge}
+                  </div>
                 </div>
-              </div>
+              </Link>
 
-              <div className="flex min-h-64 flex-col p-4">
+              <div className="flex flex-1 flex-col p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <Link href={`/produto/${product.slug}`}>
@@ -109,7 +111,7 @@ export default function ProductGrid({
                   <p className="shrink-0 text-base font-black">{currency.format(product.price)}</p>
                 </div>
 
-                <p className="mt-4 min-h-16 text-sm font-medium leading-6 text-neutral-600">
+                <p className="mt-4 text-sm font-medium leading-6 text-neutral-600">
                   {product.description}
                 </p>
 
