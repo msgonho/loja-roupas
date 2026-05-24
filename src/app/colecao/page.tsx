@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
 import { products, readyProducts, customProducts } from "@/lib/products";
+
+export const metadata: Metadata = {
+  title: "Coleção — KromaLab",
+  description:
+    "Catálogo completo de camisetas streetwear, moletons, personalizados e kits. Compre peças prontas ou solicite orçamento.",
+};
 
 const categories = [
   ["Todos", `${products.length} modelos`],

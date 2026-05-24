@@ -49,6 +49,15 @@ export default function CheckoutPage() {
   const [coupon, setCoupon] = useState("");
   const [customizationNote, setCustomizationNote] = useState("");
   const [orderCode, setOrderCode] = useState("");
+  const [customer, setCustomer] = useState({
+    name: "",
+    whatsapp: "",
+    email: "",
+    cep: "",
+    city: "",
+    address: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const selectedShipping = useMemo(
     () =>
@@ -65,8 +74,35 @@ export default function CheckoutPage() {
   const couponDiscount = coupon.trim().toUpperCase() === "KROMA10" ? subtotal * 0.1 : 0;
   const total = Math.max(subtotal + shipping - pixDiscount - couponDiscount, 0);
 
+  function validateCustomer() {
+    const newErrors: Record<string, string> = {};
+
+    if (!customer.name.trim()) {
+      newErrors.name = "Preencha seu nome";
+    }
+    if (!customer.whatsapp.trim()) {
+      newErrors.whatsapp = "Preencha o WhatsApp";
+    }
+    if (!customer.email.trim() || !customer.email.includes("@")) {
+      newErrors.email = "Preencha um e-mail válido";
+    }
+    if (!customer.cep.trim()) {
+      newErrors.cep = "Preencha o CEP";
+    }
+    if (!customer.address.trim()) {
+      newErrors.address = "Preencha o endereço";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
   function finishOrder() {
     if (itemCount === 0) {
+      return;
+    }
+
+    if (!validateCustomer()) {
       return;
     }
 
@@ -237,48 +273,66 @@ export default function CheckoutPage() {
               <section className="rounded-lg bg-white p-5 shadow-sm md:p-6">
                 <p className="text-xs font-black uppercase text-neutral-500">Etapa 2</p>
                 <h2 className="mt-1 text-2xl font-black uppercase">Dados do cliente</h2>
-                <form className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     Nome completo
                     <input
                       type="text"
+                      required
                       autoComplete="name"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.name}
+                      onChange={(event) => setCustomer({ ...customer, name: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.name ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="Seu nome"
                     />
+                    {errors.name ? <span className="text-xs font-bold normal-case text-red-500">{errors.name}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     WhatsApp
                     <input
                       type="tel"
+                      required
                       autoComplete="tel"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.whatsapp}
+                      onChange={(event) => setCustomer({ ...customer, whatsapp: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.whatsapp ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="(00) 00000-0000"
                     />
+                    {errors.whatsapp ? <span className="text-xs font-bold normal-case text-red-500">{errors.whatsapp}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700 md:col-span-2">
                     E-mail
                     <input
                       type="email"
+                      required
                       autoComplete="email"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.email}
+                      onChange={(event) => setCustomer({ ...customer, email: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.email ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="voce@email.com"
                     />
+                    {errors.email ? <span className="text-xs font-bold normal-case text-red-500">{errors.email}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     CEP
                     <input
                       type="text"
+                      required
                       autoComplete="postal-code"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.cep}
+                      onChange={(event) => setCustomer({ ...customer, cep: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.cep ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="00000-000"
                     />
+                    {errors.cep ? <span className="text-xs font-bold normal-case text-red-500">{errors.cep}</span> : null}
                   </label>
                   <label className="grid gap-2 text-sm font-black uppercase text-neutral-700">
                     Cidade e estado
                     <input
                       type="text"
                       autoComplete="address-level2"
+                      value={customer.city}
+                      onChange={(event) => setCustomer({ ...customer, city: event.target.value })}
                       className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
                       placeholder="Cidade / UF"
                     />
@@ -287,12 +341,16 @@ export default function CheckoutPage() {
                     Endereço completo
                     <input
                       type="text"
+                      required
                       autoComplete="street-address"
-                      className="focus-ring rounded-lg border border-neutral-300 px-4 py-3 text-sm font-medium normal-case text-black"
+                      value={customer.address}
+                      onChange={(event) => setCustomer({ ...customer, address: event.target.value })}
+                      className={`focus-ring rounded-lg border px-4 py-3 text-sm font-medium normal-case text-black ${errors.address ? "border-red-400" : "border-neutral-300"}`}
                       placeholder="Rua, número, complemento e bairro"
                     />
+                    {errors.address ? <span className="text-xs font-bold normal-case text-red-500">{errors.address}</span> : null}
                   </label>
-                </form>
+                </div>
               </section>
 
               <section className="rounded-lg bg-white p-5 shadow-sm md:p-6">

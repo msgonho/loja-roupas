@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
 import { launchProducts } from "@/lib/products";
+
+export const metadata: Metadata = {
+  title: "KromaLab Personalizados — Streetwear, Brindes e Uniformes",
+  description:
+    "Compre peças prontas, envie um briefing personalizado ou solicite atacado. Camisetas, moletons, brindes e kits com acabamento de produção.",
+};
 
 const quickLinks = [
   {

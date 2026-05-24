@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Footer from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "Guia de Tamanhos — KromaLab",
+  description:
+    "Tabela de medidas para camisetas premium e oversized KromaLab. Compare comprimento e largura antes de comprar.",
+};
 
 const sizes = [
   ["P", "68 cm", "52 cm", "Oversized leve"],

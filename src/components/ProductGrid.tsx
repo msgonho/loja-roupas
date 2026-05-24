@@ -99,9 +99,11 @@ export default function ProductGrid({
               <div className="flex min-h-64 flex-col p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-base font-black uppercase leading-snug">
-                      {product.name}
-                    </h3>
+                    <Link href={`/produto/${product.slug}`}>
+                      <h3 className="text-base font-black uppercase leading-snug transition-colors hover:text-[var(--accent)]">
+                        {product.name}
+                      </h3>
+                    </Link>
                     <p className="mt-1 text-sm font-bold text-neutral-500">{product.fit}</p>
                   </div>
                   <p className="shrink-0 text-base font-black">{currency.format(product.price)}</p>

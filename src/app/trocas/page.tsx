@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Footer from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "Trocas e Devoluções — KromaLab",
+  description:
+    "Política de trocas e devoluções KromaLab. Regras claras para peças prontas, personalizados e atacado.",
+};
 
 const policies = [
   ["7 dias", "Solicitação de troca ou devolução após o recebimento."],

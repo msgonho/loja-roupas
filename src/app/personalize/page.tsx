@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Footer from "@/components/Footer";
+import { WHATSAPP_NUMBER } from "@/lib/products";
 
 type QuoteItem = {
   id: number;
@@ -127,9 +128,8 @@ export default function PersonalizePage() {
       ]),
     ].join("\n");
 
-    const whatsappNumber = "5511999999999";
     window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
       "_blank"
     );
   }

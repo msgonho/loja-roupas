@@ -129,3 +129,9 @@ export const products: Product[] = [
 export const launchProducts = products.filter((product) => product.launch);
 export const readyProducts = products.filter((product) => product.category !== "custom");
 export const customProducts = products.filter((product) => product.category === "custom");
+
+export function getProductBySlug(slug: string): Product | undefined {
+  return products.find((product) => product.slug === slug);
+}
+
+export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "5511999999999";

@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
 import { launchProducts } from "@/lib/products";
+
+export const metadata: Metadata = {
+  title: "Lançamentos — KromaLab",
+  description:
+    "Novos drops de streetwear KromaLab. Peças com caimento amplo, acabamento premium e tiragem limitada.",
+};
 
 const dropNotes = [
   "Modelagens com caimento amplo e acabamento discreto.",

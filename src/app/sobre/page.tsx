@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Footer from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "Sobre — KromaLab",
+  description:
+    "Conheça a KromaLab: laboratório de streetwear, brindes e uniformes personalizados com acabamento de produção.",
+};
 
 const values = [
   ["Acabamento", "Peças com tecido, caimento e aplicação pensados para uso real."],
