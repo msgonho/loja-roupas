@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import AdminShell from "@/components/AdminShell";
-import type { Order } from "@/lib/data";
+import type { Order, AdminUser } from "@/lib/data";
 import { currency } from "@/lib/products";
 
 const allStatuses: Order["status"][] = [
@@ -25,6 +25,14 @@ const statusColors: Record<string, string> = {
   cancelado: "bg-red-500/20 text-red-400",
 };
 
+const allPriorities = ["baixa", "normal", "alta", "urgente"] as const;
+const priorityColors: Record<string, string> = {
+  urgente: "bg-red-500/20 text-red-400",
+  alta: "bg-orange-500/20 text-orange-400",
+  normal: "bg-white/10 text-neutral-400",
+  baixa: "bg-neutral-500/20 text-neutral-600",
+};
+
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -37,6 +45,14 @@ export default function OrderDetailPage() {
   const [customerForm, setCustomerForm] = useState({
     name: "", whatsapp: "", email: "", cep: "", city: "", address: "",
   });
+  const [users, setUsers] = useState<AdminUser[]>([]);
+
+  useEffect(() => {
+    fetch("/api/users", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`/api/orders/${params.id}`, { credentials: "include" })
@@ -326,6 +342,46 @@ export default function OrderDetailPage() {
                   {status}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Priority & Assignee */}
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-md border border-white/10 bg-white/5 p-5">
+              <h2 className="text-xs font-black uppercase text-neutral-400">Prioridade</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {allPriorities.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    disabled={updating || (order.priority || "normal") === p}
+                    onClick={() => patchOrder({ priority: p })}
+                    className={`rounded-md px-4 py-2 text-xs font-black capitalize transition-colors disabled:opacity-30 ${
+                      (order.priority || "normal") === p
+                        ? priorityColors[p]
+                        : "border border-white/10 text-neutral-300 hover:bg-white/10"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-md border border-white/10 bg-white/5 p-5">
+              <h2 className="text-xs font-black uppercase text-neutral-400">Responsável</h2>
+              <div className="mt-3">
+                <select
+                  value={order.assignee || ""}
+                  onChange={(e) => patchOrder({ assignee: e.target.value || undefined })}
+                  disabled={updating}
+                  className="admin-input w-full disabled:opacity-50"
+                >
+                  <option value="">Sem responsável</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.name}>{u.name} ({u.role})</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 

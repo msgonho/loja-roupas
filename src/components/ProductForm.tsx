@@ -310,18 +310,15 @@ export default function ProductForm({ product }: ProductFormProps) {
             placeholder="Em estoque"
           />
         </Field>
-        <Field label="Lançamento">
-          <div className="flex h-[42px] items-center">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-bold normal-case text-neutral-300">
-              <input
-                type="checkbox"
-                checked={form.launch}
-                onChange={(e) => updateField("launch", e.target.checked)}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 accent-white"
-              />
-              Marcar como lançamento
-            </label>
-          </div>
+        <Field label="Exibir em">
+          <select
+            value={form.launch ? "lancamentos" : "colecao"}
+            onChange={(e) => updateField("launch", e.target.value === "lancamentos")}
+            className="admin-input"
+          >
+            <option value="colecao">Coleção</option>
+            <option value="lancamentos">Lançamentos</option>
+          </select>
         </Field>
       </div>
 

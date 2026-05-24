@@ -10,8 +10,12 @@ function dataPath(file: string) {
 }
 
 async function ensureDir() {
-  if (!existsSync(DATA_DIR)) {
-    await mkdir(DATA_DIR, { recursive: true });
+  try {
+    if (!existsSync(DATA_DIR)) {
+      await mkdir(DATA_DIR, { recursive: true });
+    }
+  } catch {
+    /* read-only filesystem (e.g. Vercel) */
   }
 }
 
@@ -19,11 +23,19 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
   await ensureDir();
   const filePath = dataPath(file);
   if (!existsSync(filePath)) {
-    await writeFile(filePath, JSON.stringify(fallback, null, 2), "utf-8");
+    try {
+      await writeFile(filePath, JSON.stringify(fallback, null, 2), "utf-8");
+    } catch {
+      /* read-only filesystem — return in-memory fallback */
+    }
     return fallback;
   }
-  const raw = await readFile(filePath, "utf-8");
-  return JSON.parse(raw) as T;
+  try {
+    const raw = await readFile(filePath, "utf-8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 async function writeJson<T>(file: string, data: T): Promise<void> {
@@ -99,6 +111,8 @@ export type Order = {
   total: number;
   note: string;
   status: "pendente" | "confirmado" | "produção" | "enviado" | "entregue" | "cancelado";
+  priority?: "baixa" | "normal" | "alta" | "urgente";
+  assignee?: string;
   trackingCode?: string;
   internalNotes?: string;
   timeline?: OrderEvent[];
@@ -130,7 +144,7 @@ export async function createOrder(order: Omit<Order, "id" | "status" | "createdA
   return newOrder;
 }
 
-export async function updateOrder(id: string, updates: Partial<Pick<Order, "status" | "trackingCode" | "internalNotes" | "customer">>): Promise<Order | null> {
+export async function updateOrder(id: string, updates: Partial<Pick<Order, "status" | "trackingCode" | "internalNotes" | "customer" | "priority" | "assignee" | "items" | "payment" | "subtotal" | "discount" | "total" | "shipping" | "note">>): Promise<Order | null> {
   const orders = await getOrders();
   const index = orders.findIndex((o) => o.id === id);
   if (index === -1) return null;
@@ -147,6 +161,12 @@ export async function updateOrder(id: string, updates: Partial<Pick<Order, "stat
   }
   if (updates.internalNotes && updates.internalNotes !== current.internalNotes) {
     timeline.push({ date: now, action: "Nota interna atualizada" });
+  }
+  if (updates.priority && updates.priority !== current.priority) {
+    timeline.push({ date: now, action: `Prioridade alterada para "${updates.priority}"` });
+  }
+  if (updates.assignee !== undefined && updates.assignee !== current.assignee) {
+    timeline.push({ date: now, action: updates.assignee ? `Atribuído a ${updates.assignee}` : "Responsável removido" });
   }
 
   orders[index] = { ...current, ...updates, timeline, updatedAt: now };
@@ -191,4 +211,63 @@ export async function updateSettings(updates: Partial<SiteSettings>): Promise<Si
   const updated = { ...settings, ...updates };
   await writeJson("settings.json", updated);
   return updated;
+}
+
+// --- Users ---
+
+export type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "manager" | "viewer";
+  createdAt: string;
+};
+
+const defaultUsers: AdminUser[] = [
+  {
+    id: "user-1",
+    name: "Administrador",
+    email: "admin@kromalab.com.br",
+    role: "admin",
+    createdAt: new Date().toISOString(),
+  },
+];
+
+export async function getUsers(): Promise<AdminUser[]> {
+  return readJson<AdminUser[]>("users.json", defaultUsers);
+}
+
+export async function getUserById(id: string): Promise<AdminUser | undefined> {
+  const users = await getUsers();
+  return users.find((u) => u.id === id);
+}
+
+export async function createUser(user: Omit<AdminUser, "id" | "createdAt">): Promise<AdminUser> {
+  const users = await getUsers();
+  const newUser: AdminUser = {
+    ...user,
+    id: `user-${Date.now().toString(36)}`,
+    createdAt: new Date().toISOString(),
+  };
+  users.push(newUser);
+  await writeJson("users.json", users);
+  return newUser;
+}
+
+export async function updateUser(id: string, updates: Partial<Pick<AdminUser, "name" | "email" | "role">>): Promise<AdminUser | null> {
+  const users = await getUsers();
+  const index = users.findIndex((u) => u.id === id);
+  if (index === -1) return null;
+  users[index] = { ...users[index], ...updates };
+  await writeJson("users.json", users);
+  return users[index];
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+  const users = await getUsers();
+  if (users.length <= 1) return false;
+  const filtered = users.filter((u) => u.id !== id);
+  if (filtered.length === users.length) return false;
+  await writeJson("users.json", filtered);
+  return true;
 }

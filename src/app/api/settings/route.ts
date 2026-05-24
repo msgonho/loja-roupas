@@ -6,10 +6,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    if (!(await isAuthenticated())) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
     const settings = await getSettings();
     return NextResponse.json(settings);
   } catch (err) {
