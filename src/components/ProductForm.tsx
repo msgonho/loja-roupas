@@ -90,6 +90,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     const response = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(payload),
     });
 

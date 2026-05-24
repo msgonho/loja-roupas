@@ -13,7 +13,7 @@ export default function EditProductPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/products/${params.id}`)
+    fetch(`/api/products/${params.id}`, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error("Produto não encontrado");
         return r.json();

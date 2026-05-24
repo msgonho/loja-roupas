@@ -33,7 +33,7 @@ export default function OrderDetailPage() {
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/orders/${params.id}`)
+    fetch(`/api/orders/${params.id}`, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error("Pedido não encontrado");
         return r.json();
@@ -48,6 +48,7 @@ export default function OrderDetailPage() {
     const response = await fetch(`/api/orders/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ status }),
     });
     if (response.ok) {

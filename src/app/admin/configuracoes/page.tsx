@@ -11,12 +11,13 @@ export default function AdminSettingsPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings", { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
-        setSettings(data);
-        setLoading(false);
-      });
+        if (data && !data.error) setSettings(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSave(event: React.FormEvent) {
@@ -29,6 +30,7 @@ export default function AdminSettingsPage() {
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(settings),
     });
 

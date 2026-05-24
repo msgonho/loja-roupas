@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyPassword, setSession, clearSession, isAuthenticated } from "@/lib/auth";
+import { verifyPassword, setSessionCookie, clearSessionCookie, isAuthenticated } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -9,13 +9,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Senha incorreta" }, { status: 401 });
   }
 
-  await setSession();
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  return setSessionCookie(response);
 }
 
 export async function DELETE() {
-  await clearSession();
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  return clearSessionCookie(response);
 }
 
 export async function GET() {
