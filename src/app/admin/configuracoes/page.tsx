@@ -11,13 +11,26 @@ export default function AdminSettingsPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch("/api/settings", { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && !data.error) setSettings(data);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const r = await fetch("/api/settings", { credentials: "include" });
+          const data = await r.json();
+          if (!cancelled && data && !data.error) {
+            setSettings(data);
+            break;
+          }
+          if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch {
+          if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   async function handleSave(event: React.FormEvent) {

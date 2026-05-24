@@ -23,6 +23,8 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState<string>("todos");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"date" | "total">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     fetch("/api/orders", { credentials: "include" })
@@ -35,16 +37,28 @@ export default function AdminOrdersPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    const result = orders.filter((o) => {
       const matchesStatus = filter === "todos" || o.status === filter;
       const matchesSearch =
         !search ||
         o.id.toLowerCase().includes(search.toLowerCase()) ||
         o.customer.name.toLowerCase().includes(search.toLowerCase()) ||
-        o.customer.email.toLowerCase().includes(search.toLowerCase());
+        o.customer.email.toLowerCase().includes(search.toLowerCase()) ||
+        (o.trackingCode || "").toLowerCase().includes(search.toLowerCase());
       return matchesStatus && matchesSearch;
     });
-  }, [orders, filter, search]);
+
+    result.sort((a, b) => {
+      if (sortBy === "total") {
+        return sortDir === "asc" ? a.total - b.total : b.total - a.total;
+      }
+      const da = new Date(a.createdAt).getTime();
+      const db = new Date(b.createdAt).getTime();
+      return sortDir === "asc" ? da - db : db - da;
+    });
+
+    return result;
+  }, [orders, filter, search, sortBy, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -61,6 +75,33 @@ export default function AdminOrdersPage() {
     .filter((o) => o.status !== "cancelado")
     .reduce((sum, o) => sum + o.total, 0);
 
+  const pendingCount = orders.filter((o) => o.status === "pendente").length;
+  const productionCount = orders.filter((o) => o.status === "produção").length;
+  const shippedCount = orders.filter((o) => o.status === "enviado").length;
+
+  function exportAll() {
+    const header = "Código,Cliente,E-mail,WhatsApp,Status,Total,Pagamento,Rastreio,Data\n";
+    const rows = filtered.map((o) =>
+      [o.id, o.customer.name, o.customer.email, o.customer.whatsapp, o.status, o.total.toFixed(2), o.payment, o.trackingCode || "", new Date(o.createdAt).toLocaleDateString("pt-BR")].join(",")
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pedidos-kromalab.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function toggleSort(field: "date" | "total") {
+    if (sortBy === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("desc");
+    }
+  }
+
   return (
     <AdminShell>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -72,12 +113,43 @@ export default function AdminOrdersPage() {
           </h1>
         </div>
         {orders.length > 0 ? (
-          <div className="text-right">
-            <p className="text-lg font-black text-white">{currency.format(totalRevenue)}</p>
-            <p className="text-xs font-bold text-neutral-500">Receita total</p>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={exportAll}
+              className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-bold text-neutral-400 transition-colors hover:bg-white/10"
+            >
+              Exportar CSV
+            </button>
+            <div className="text-right">
+              <p className="text-lg font-black text-white">{currency.format(totalRevenue)}</p>
+              <p className="text-xs font-bold text-neutral-500">Receita total</p>
+            </div>
           </div>
         ) : null}
       </div>
+
+      {/* KPIs */}
+      {orders.length > 0 ? (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-md border border-white/10 bg-white/5 p-3">
+            <p className="text-xl font-black text-white">{orders.length}</p>
+            <p className="text-[10px] font-black uppercase text-neutral-500">Total pedidos</p>
+          </div>
+          <div className="rounded-md border border-yellow-500/20 bg-yellow-500/5 p-3">
+            <p className="text-xl font-black text-yellow-400">{pendingCount}</p>
+            <p className="text-[10px] font-black uppercase text-neutral-500">Pendentes</p>
+          </div>
+          <div className="rounded-md border border-purple-500/20 bg-purple-500/5 p-3">
+            <p className="text-xl font-black text-purple-400">{productionCount}</p>
+            <p className="text-[10px] font-black uppercase text-neutral-500">Em produção</p>
+          </div>
+          <div className="rounded-md border border-cyan-500/20 bg-cyan-500/5 p-3">
+            <p className="text-xl font-black text-cyan-400">{shippedCount}</p>
+            <p className="text-[10px] font-black uppercase text-neutral-500">Enviados</p>
+          </div>
+        </div>
+      ) : null}
 
       {/* Search */}
       <div className="mt-5">
@@ -85,7 +157,7 @@ export default function AdminOrdersPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por código, nome ou e-mail..."
+          placeholder="Buscar por código, nome, e-mail ou rastreio..."
           className="admin-input max-w-sm"
         />
       </div>
@@ -143,10 +215,15 @@ export default function AdminOrdersPage() {
                   <th className="px-4 py-3">Cliente</th>
                   <th className="hidden px-4 py-3 sm:table-cell">E-mail</th>
                   <th className="px-4 py-3">Itens</th>
-                  <th className="px-4 py-3">Total</th>
+                  <th className="cursor-pointer px-4 py-3 transition-colors hover:text-white" onClick={() => toggleSort("total")}>
+                    Total {sortBy === "total" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                  </th>
                   <th className="px-4 py-3">Pagamento</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Data</th>
+                  <th className="hidden px-4 py-3 lg:table-cell">Rastreio</th>
+                  <th className="cursor-pointer px-4 py-3 transition-colors hover:text-white" onClick={() => toggleSort("date")}>
+                    Data {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                  </th>
                   <th className="px-4 py-3 text-right">Ações</th>
                 </tr>
               </thead>
@@ -173,6 +250,9 @@ export default function AdminOrdersPage() {
                       >
                         {order.status}
                       </span>
+                    </td>
+                    <td className="hidden px-4 py-3 text-xs text-neutral-500 lg:table-cell">
+                      {order.trackingCode || "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-neutral-500">
                       {new Date(order.createdAt).toLocaleDateString("pt-BR")}

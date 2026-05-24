@@ -76,6 +76,11 @@ export async function deleteProduct(id: number): Promise<boolean> {
 
 // --- Orders ---
 
+export type OrderEvent = {
+  date: string;
+  action: string;
+};
+
 export type Order = {
   id: string;
   items: { id: number; name: string; price: number; image: string; quantity: number }[];
@@ -94,7 +99,11 @@ export type Order = {
   total: number;
   note: string;
   status: "pendente" | "confirmado" | "produção" | "enviado" | "entregue" | "cancelado";
+  trackingCode?: string;
+  internalNotes?: string;
+  timeline?: OrderEvent[];
   createdAt: string;
+  updatedAt?: string;
 };
 
 export async function getOrders(): Promise<Order[]> {
@@ -106,26 +115,51 @@ export async function getOrderById(id: string): Promise<Order | undefined> {
   return orders.find((o) => o.id === id);
 }
 
-export async function createOrder(order: Omit<Order, "id" | "status" | "createdAt">): Promise<Order> {
+export async function createOrder(order: Omit<Order, "id" | "status" | "createdAt" | "timeline">): Promise<Order> {
   const orders = await getOrders();
   const newOrder: Order = {
     ...order,
     id: `KR-${Date.now().toString().slice(-6)}`,
     status: "pendente",
+    timeline: [{ date: new Date().toISOString(), action: "Pedido criado" }],
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
   orders.unshift(newOrder);
   await writeJson("orders.json", orders);
   return newOrder;
 }
 
-export async function updateOrderStatus(id: string, status: Order["status"]): Promise<Order | null> {
+export async function updateOrder(id: string, updates: Partial<Pick<Order, "status" | "trackingCode" | "internalNotes" | "customer">>): Promise<Order | null> {
   const orders = await getOrders();
   const index = orders.findIndex((o) => o.id === id);
   if (index === -1) return null;
-  orders[index] = { ...orders[index], status };
+
+  const current = orders[index];
+  const timeline = current.timeline || [];
+  const now = new Date().toISOString();
+
+  if (updates.status && updates.status !== current.status) {
+    timeline.push({ date: now, action: `Status alterado para "${updates.status}"` });
+  }
+  if (updates.trackingCode && updates.trackingCode !== current.trackingCode) {
+    timeline.push({ date: now, action: `Código de rastreio: ${updates.trackingCode}` });
+  }
+  if (updates.internalNotes && updates.internalNotes !== current.internalNotes) {
+    timeline.push({ date: now, action: "Nota interna atualizada" });
+  }
+
+  orders[index] = { ...current, ...updates, timeline, updatedAt: now };
   await writeJson("orders.json", orders);
   return orders[index];
+}
+
+export async function deleteOrder(id: string): Promise<boolean> {
+  const orders = await getOrders();
+  const filtered = orders.filter((o) => o.id !== id);
+  if (filtered.length === orders.length) return false;
+  await writeJson("orders.json", filtered);
+  return true;
 }
 
 // --- Settings ---

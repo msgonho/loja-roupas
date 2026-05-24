@@ -2,21 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { getSettings, updateSettings } from "@/lib/data";
 
-export async function GET() {
-  if (!(await isAuthenticated())) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  }
+export const dynamic = "force-dynamic";
 
-  const settings = await getSettings();
-  return NextResponse.json(settings);
+export async function GET() {
+  try {
+    if (!(await isAuthenticated())) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    const settings = await getSettings();
+    return NextResponse.json(settings);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar configurações";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
-  if (!(await isAuthenticated())) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  }
+  try {
+    if (!(await isAuthenticated())) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
 
-  const body = await request.json();
-  const settings = await updateSettings(body);
-  return NextResponse.json(settings);
+    const body = await request.json();
+    const settings = await updateSettings(body);
+    return NextResponse.json(settings);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar configurações";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

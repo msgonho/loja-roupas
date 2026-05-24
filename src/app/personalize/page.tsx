@@ -250,7 +250,7 @@ export default function PersonalizePage() {
                             Math.max(Number(event.target.value) || 1, 1)
                           )
                         }
-                        className="focus-ring rounded-md border border-neutral-300 px-4 py-3 text-sm font-bold text-black"
+                        className="focus-ring w-full min-w-0 rounded-md border border-neutral-300 px-4 py-3 text-sm font-bold text-black"
                       />
                     </label>
 

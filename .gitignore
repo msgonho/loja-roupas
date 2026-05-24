@@ -37,6 +37,9 @@ yarn-error.log*
 # runtime data (admin panel JSON storage)
 /data/
 
+# uploaded images
+/public/uploads/
+
 # vercel
 .vercel
 

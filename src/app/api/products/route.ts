@@ -3,8 +3,13 @@ import { isAuthenticated } from "@/lib/auth";
 import { getProducts, createProduct } from "@/lib/data";
 
 export async function GET() {
-  const products = await getProducts();
-  return NextResponse.json(products);
+  try {
+    const products = await getProducts();
+    return NextResponse.json(products);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar produtos";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -12,7 +17,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const product = await createProduct(body);
-  return NextResponse.json(product, { status: 201 });
+  try {
+    const body = await request.json();
+    const product = await createProduct(body);
+    return NextResponse.json(product, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao criar produto";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
