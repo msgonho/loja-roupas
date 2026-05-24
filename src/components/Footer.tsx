@@ -52,8 +52,9 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-white/10 px-4 py-5 text-center text-xs font-bold text-neutral-400">
-        2026 KromaLab Personalizados. Checkout pronto para receber integração de pagamento.
+        2026 KromaLab Personalizados.
       </div>
     </footer>
   );
 }
+

@@ -80,7 +80,7 @@ export default function Header() {
 
             <Link href="/" className="focus-ring flex min-w-0 items-center rounded-md" aria-label="KromaLab">
               <Image
-                src="/kromalab-logo-transparent.png"
+                src="/logo.png"
                 alt="KromaLab"
                 width={236}
                 height={60}
@@ -135,7 +135,7 @@ export default function Header() {
           <div className="flex items-center justify-between gap-4 border-b border-black/10 p-5">
             <Link href="/" onClick={closeMenu} className="focus-ring flex items-center rounded-md">
               <Image
-                src="/kromalab-logo-transparent.png"
+                src="/logo.png"
                 alt="KromaLab"
                 width={236}
                 height={60}

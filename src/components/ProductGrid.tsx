@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useCart } from "@/components/CartContext";
 import { currency, products as defaultProducts, type Product } from "@/lib/products";
 
@@ -12,6 +13,7 @@ type ProductGridProps = {
   eyebrow?: string;
   description?: string;
   variant?: "catalog" | "compact" | "editorial";
+  showSizeSelector?: boolean;
 };
 
 export default function ProductGrid({
@@ -20,13 +22,15 @@ export default function ProductGrid({
   eyebrow,
   description,
   variant = "catalog",
+  showSizeSelector = false,
 }: ProductGridProps) {
   const { addToCart } = useCart();
   const router = useRouter();
   const isCompact = variant === "compact";
   const isEditorial = variant === "editorial";
+  const [selectedSizes, setSelectedSizes] = useState<Record<number, string>>({});
 
-  function addProduct(product: Product) {
+  function addProduct(product: Product, size?: string) {
     addToCart({
       id: product.id,
       name: product.name,
@@ -35,9 +39,19 @@ export default function ProductGrid({
     });
   }
 
-  function buyNow(product: Product) {
-    addProduct(product);
+  function buyNow(product: Product, size?: string) {
+    addProduct(product, size);
     router.push("/checkout");
+  }
+
+  function handleSizeClick(product: Product, size: string) {
+    setSelectedSizes({ ...selectedSizes, [product.id]: size });
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+    });
   }
 
   return (
@@ -117,12 +131,18 @@ export default function ProductGrid({
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {product.sizes.map((size) => (
-                    <span
+                    <button
                       key={size}
-                      className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-black text-neutral-700"
+                      type="button"
+                      onClick={() => handleSizeClick(product, size)}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-black transition-colors ${
+                        selectedSizes[product.id] === size
+                          ? "border-black bg-black text-white"
+                          : "border-neutral-200 text-neutral-700 hover:border-black hover:bg-neutral-100"
+                      }`}
                     >
                       {size}
-                    </span>
+                    </button>
                   ))}
                 </div>
 

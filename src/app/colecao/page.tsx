@@ -1,17 +1,43 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
-import { products, readyProducts, customProducts } from "@/lib/products";
+import { products, readyProducts, customProducts, type Product } from "@/lib/products";
 
 const categories = [
-  ["Todos", `${products.length} modelos`],
-  ["Pronta entrega", `${readyProducts.length} peças`],
-  ["Personalizáveis", `${customProducts.length} opções`],
-  ["Atacado", "kits sob consulta"],
+  { id: "all", name: "Todos", count: products.length },
+  { id: "ready", name: "Pronta entrega", count: readyProducts.length },
+  { id: "custom", name: "Personalizáveis", count: customProducts.length },
+  { id: "professions", name: "Profissões", count: products.filter(p => p.badge === "Profissões").length },
+  { id: "popular", name: "Populares", count: products.filter(p => p.badge === "Best seller").length },
+  { id: "basic", name: "Básicas", count: products.filter(p => p.category === "ready" && !p.badge).length },
 ];
 
 export default function ColecaoPage() {
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
+  function getFilteredProducts(): Product[] {
+    switch (selectedCategory) {
+      case "ready":
+        return readyProducts;
+      case "custom":
+        return customProducts;
+      case "professions":
+        return products.filter(p => p.badge === "Profissões");
+      case "popular":
+        return products.filter(p => p.badge === "Best seller");
+      case "basic":
+        return products.filter(p => p.category === "ready" && !p.badge);
+      default:
+        return products;
+    }
+  }
+
+  const filteredProducts = getFilteredProducts();
+
   return (
     <main className="min-h-screen bg-[var(--background)] text-black">
       <section className="bg-white">
@@ -29,11 +55,23 @@ export default function ColecaoPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {categories.map(([title, text]) => (
-                <div key={title} className="rounded-md border border-neutral-200 bg-white p-4">
-                  <p className="text-sm font-black uppercase">{title}</p>
-                  <p className="mt-1 text-sm font-bold text-neutral-500">{text}</p>
-                </div>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`rounded-md border p-4 text-left transition-colors ${
+                    selectedCategory === category.id
+                      ? "border-black bg-black text-white"
+                      : "border-neutral-200 bg-white hover:border-black"
+                  }`}
+                >
+                  <p className="text-sm font-black uppercase">{category.name}</p>
+                  <p className={`mt-1 text-sm font-bold ${
+                    selectedCategory === category.id ? "text-neutral-300" : "text-neutral-500"
+                  }`}>
+                    {category.count} {category.id === "custom" ? "opções" : "modelos"}
+                  </p>
+                </button>
               ))}
             </div>
           </div>
@@ -67,7 +105,7 @@ export default function ColecaoPage() {
       </section>
 
       <ProductGrid
-        products={products}
+        products={filteredProducts}
         eyebrow="Produtos"
         title="Catálogo KromaLab"
         description="Uma grade completa para decidir entre compra pronta, personalização e atacado."

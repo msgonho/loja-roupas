@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Footer from "@/components/Footer";
+import ProductMockup from "@/components/ProductMockup";
 
 type QuoteItem = {
   id: number;
@@ -337,6 +338,13 @@ export default function PersonalizePage() {
                         />
                       </span>
                     </label>
+
+                    <div className="md:col-span-12">
+                      <p className="mb-3 text-sm font-black uppercase text-neutral-700">
+                        Preview do Mockup
+                      </p>
+                      <ProductMockup />
+                    </div>
 
                     <label className="grid gap-2 text-sm font-black uppercase text-neutral-700 md:col-span-7">
                       Observações
